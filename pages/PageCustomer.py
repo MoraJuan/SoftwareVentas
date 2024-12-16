@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from services.customerService import CustomerService
 from ui.components.data_table import DataTable
 from ui.components.alerts import show_success_message, show_error_message
+from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+
 
 class PageCustomer(ft.View):
     def __init__(self, page: ft.Page, session: Session):
@@ -14,6 +16,9 @@ class PageCustomer(ft.View):
         self.build_ui()
 
     def build_ui(self):
+        self.navigation_rail = create_navigation_rail(
+            0, self.handle_navigation)
+
         self.customer_table = ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text("ID")),
@@ -23,26 +28,24 @@ class PageCustomer(ft.View):
             rows=[]
         )
 
-        self.home_button = ft.IconButton(
-            icon=ft.icons.HOME,
-            tooltip="Volver al inicio",
-            on_click=lambda e: self.page.go("/dashboard")
-        )
-
         self.add_button = ft.ElevatedButton(
             "Agregar Comprador",
             on_click=lambda e: self.page.go("/agregar_comprador")
         )
 
         self.controls = [
-            ft.Column([
-                ft.Row([
-                    ft.Text("Compradores", weight=ft.FontWeight.BOLD, size=20),
-                    self.home_button
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                self.add_button,
-                self.customer_table
-            ], spacing=20)
+            ft.Row([
+                self.navigation_rail,
+                ft.Column([
+                    ft.Row([
+                        ft.Text("Compradores",
+                                weight=ft.FontWeight.BOLD, size=20),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    self.add_button,
+                    self.customer_table
+                ], spacing=20)
+            ])
+
         ]
 
         self.load_customers()
@@ -64,7 +67,8 @@ class PageCustomer(ft.View):
                 )
             self.update()  # Update the view to reflect the new data
         except Exception as e:
-            show_error_message(self.page, f"Error al cargar los compradores: {str(e)}")
+            show_error_message(
+                self.page, f"Error al cargar los compradores: {str(e)}")
 
     def on_edit_customer(self, customer):
         try:
@@ -83,3 +87,10 @@ class PageCustomer(ft.View):
         except Exception as e:
             show_error_message(
                 self.page, f"Error al eliminar el comprador: {str(e)}")
+
+    def handle_navigation(self, e):
+        try:
+            route = get_route_for_index(e.control.selected_index)
+            self.page.go(route)
+        except Exception as e:
+            show_error_message(self.page, f"Navigation error: {str(e)}")

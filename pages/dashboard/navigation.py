@@ -1,13 +1,15 @@
 import flet as ft
 
+
 def create_navigation_rail(selected_index: int, on_change):
     return ft.NavigationRail(
         selected_index=selected_index,
         label_type=ft.NavigationRailLabelType.ALL,
         min_width=100,
         min_extended_width=200,
-        extended=True,
-        expand=True,
+        extended=False,
+        expand=False,
+        height=500,  # Esto hace que el NavigationRail ocupe el espacio restante
         destinations=[
             ft.NavigationRailDestination(
                 icon=ft.icons.DASHBOARD,
@@ -42,6 +44,7 @@ def create_navigation_rail(selected_index: int, on_change):
         ],
         on_change=on_change
     )
+
 
 def get_route_for_index(index: int) -> str:
     routes = {

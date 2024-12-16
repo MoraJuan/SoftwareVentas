@@ -2,6 +2,8 @@ import flet as ft
 from sqlalchemy.orm import Session
 from services.productService import ProductService
 from ui.components.alerts import show_success_message, show_error_message
+from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+
 
 class PageProduct(ft.View):
     def __init__(self, page: ft.Page, session: Session):
@@ -13,6 +15,8 @@ class PageProduct(ft.View):
         self.build_ui()
 
     def build_ui(self):
+        self.navigation_rail = create_navigation_rail(
+            0, self.handle_navigation)
         # Tabla de productos
         self.product_table = ft.DataTable(
             columns=[
@@ -55,19 +59,22 @@ class PageProduct(ft.View):
 
         # Layout de la vista
         self.controls = [
-            ft.Column([
-                ft.Row([
-                    ft.Text("Productos", weight=ft.FontWeight.BOLD, size=20),
-                    self.home_button
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Row([
-                    self.name_input,
-                    self.price_input,
-                    self.stock_input,
-                    self.add_button
-                ], spacing=10),
-                self.product_table
-            ], spacing=20)
+            ft.Row([
+                self.navigation_rail,
+                ft.Column([
+                    ft.Row([
+                        ft.Text("Productos", weight=ft.FontWeight.BOLD, size=20),
+                        self.home_button
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Row([
+                        self.name_input,
+                        self.price_input,
+                        self.stock_input,
+                        self.add_button
+                    ], spacing=10),
+                    self.product_table
+                ], spacing=20)
+            ])
         ]
 
         self.load_products()
@@ -89,12 +96,14 @@ class PageProduct(ft.View):
                                     ft.IconButton(
                                         icon=ft.icons.EDIT,
                                         tooltip="Editar",
-                                        on_click=lambda e, p=product: self.edit_product(p)
+                                        on_click=lambda e, p=product: self.edit_product(
+                                            p)
                                     ),
                                     ft.IconButton(
                                         icon=ft.icons.DELETE,
                                         tooltip="Eliminar",
-                                        on_click=lambda e, p=product: self.delete_product(p)
+                                        on_click=lambda e, p=product: self.delete_product(
+                                            p)
                                     ),
                                 ])
                             ),
@@ -103,7 +112,8 @@ class PageProduct(ft.View):
                 )
             self.update()
         except Exception as e:
-            show_error_message(self.page, f"Error al cargar los productos: {str(e)}")
+            show_error_message(
+                self.page, f"Error al cargar los productos: {str(e)}")
 
     def add_product(self, e):
         try:
@@ -112,7 +122,8 @@ class PageProduct(ft.View):
             stock = int(self.stock_input.value)
 
             if not name:
-                show_error_message(self.page, "El nombre del producto es obligatorio.")
+                show_error_message(
+                    self.page, "El nombre del producto es obligatorio.")
                 return
 
             new_product = {
@@ -127,16 +138,19 @@ class PageProduct(ft.View):
             self.stock_input.value = ""
             self.load_products()
         except ValueError:
-            show_error_message(self.page, "Por favor ingrese valores numéricos válidos para precio y stock.")
+            show_error_message(
+                self.page, "Por favor ingrese valores numéricos válidos para precio y stock.")
         except Exception as e:
-            show_error_message(self.page, f"Error al agregar el producto: {str(e)}")
+            show_error_message(
+                self.page, f"Error al agregar el producto: {str(e)}")
 
     def edit_product(self, product):
         try:
             self.page.client_storage.set("edit_product_id", product.id)
             self.page.go("/editar_producto")
         except Exception as e:
-            show_error_message(self.page, f"Error al editar el producto: {str(e)}")
+            show_error_message(
+                self.page, f"Error al editar el producto: {str(e)}")
 
     def delete_product(self, product):
         try:
@@ -144,14 +158,16 @@ class PageProduct(ft.View):
             show_success_message(self.page, "Producto eliminado exitosamente.")
             self.load_products()
         except Exception as e:
-            show_error_message(self.page, f"Error al eliminar el producto: {str(e)}")
-            
+            show_error_message(
+                self.page, f"Error al eliminar el producto: {str(e)}")
+
     def clear_products(self, e=None):
         try:
             if self.product_service.delete_all_products():
                 self.load_products()
                 self.page.show_snack_bar(
-                    ft.SnackBar(content=ft.Text("Productos eliminados correctamente"))
+                    ft.SnackBar(content=ft.Text(
+                        "Productos eliminados correctamente"))
                 )
             else:
                 self.page.show_snack_bar(
@@ -167,3 +183,10 @@ class PageProduct(ft.View):
         self.price_input.value = ""
         self.stock_input.value = ""
         self.page.update()
+
+    def handle_navigation(self, e):
+        try:
+            route = get_route_for_index(e.control.selected_index)
+            self.page.go(route)
+        except Exception as e:
+            show_error_message(self.page, f"Navigation error: {str(e)}")

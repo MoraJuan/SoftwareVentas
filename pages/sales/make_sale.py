@@ -5,7 +5,7 @@ from services.saleService import SaleService
 from services.productService import ProductService
 from services.customerService import CustomerService
 from ui.components.alerts import show_success_message, show_error_message
-
+from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
 
 
 class MakeSaleView(ft.View):
@@ -23,6 +23,8 @@ class MakeSaleView(ft.View):
         self.build_ui()  # Build UI without calling self.update()
 
     def build_ui(self):
+        self.navigation_rail = create_navigation_rail(
+            0, self.handle_navigation)
         # Cart table
         self.cart_table = ft.DataTable(
             columns=[
@@ -50,17 +52,12 @@ class MakeSaleView(ft.View):
 
         # Layout of the view
         self.controls = [
+            ft.Row([
+                self.navigation_rail,
             ft.Container(
                 padding=20,
                 content=ft.Column([
-                    ft.Row([
-                        ft.Text("Realizar Venta", size=20, weight=ft.FontWeight.BOLD),
-                        ft.IconButton(
-                            icon=ft.icons.ARROW_BACK,
-                            tooltip="Volver al Dashboard",
-                            on_click=lambda e: self.page.go("/dashboard")
-                        )
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Text("Realizar Venta", size=20, weight=ft.FontWeight.BOLD),
                     self.cart_table,
                     self.total_text,
                     ft.Row([
@@ -68,7 +65,7 @@ class MakeSaleView(ft.View):
                         self.finalize_sale_button
                     ], spacing=10)
                 ], spacing=20)
-            )
+            )])
         ]
 
     def add_product(self, e):
@@ -110,3 +107,10 @@ class MakeSaleView(ft.View):
     def remove_from_cart(self, item):
         self.cart_items.remove(item)
         self.update_cart_table()
+    
+    def handle_navigation(self, e):
+        try:
+            route = get_route_for_index(e.control.selected_index)
+            self.page.go(route)
+        except Exception as e:
+            show_error_message(self.page, f"Navigation error: {str(e)}")

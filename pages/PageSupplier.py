@@ -1,8 +1,10 @@
 import flet as ft
 from sqlalchemy.orm import Session
+from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
 from services.supplierService import SupplierService
 from ui.components.alerts import show_success_message, show_error_message
 from ui.components.data_table import DataTable
+
 
 class PageSupplier(ft.View):
     def __init__(self, page: ft.Page, session: Session):
@@ -14,6 +16,9 @@ class PageSupplier(ft.View):
         self.build_ui()
 
     def build_ui(self):
+        self.navigation_rail = create_navigation_rail(
+            0, self.handle_navigation)
+
         # Tabla de proveedores
         self.supplier_table = ft.DataTable(
             columns=[
@@ -40,14 +45,17 @@ class PageSupplier(ft.View):
 
         # Layout de la vista
         self.controls = [
-            ft.Column([
-                ft.Row([
-                    ft.Text("Proveedores", weight=ft.FontWeight.BOLD, size=20),
-                    self.home_button
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                self.add_button,
-                self.supplier_table
-            ], spacing=20)
+            ft.Row([
+                self.navigation_rail,
+                ft.Column([
+                    ft.Row([
+                        ft.Text("Proveedores",
+                                weight=ft.FontWeight.BOLD, size=20),
+                    ]),
+                    self.add_button,
+                    self.supplier_table
+                ])
+            ])
         ]
 
         self.load_suppliers()
@@ -70,12 +78,14 @@ class PageSupplier(ft.View):
                                     ft.IconButton(
                                         icon=ft.icons.EDIT,
                                         tooltip="Editar",
-                                        on_click=lambda e, s=supplier: self.edit_supplier(s)
+                                        on_click=lambda e, s=supplier: self.edit_supplier(
+                                            s)
                                     ),
                                     ft.IconButton(
                                         icon=ft.icons.DELETE,
                                         tooltip="Eliminar",
-                                        on_click=lambda e, s=supplier: self.delete_supplier(s)
+                                        on_click=lambda e, s=supplier: self.delete_supplier(
+                                            s)
                                     ),
                                 ])
                             ),
@@ -84,19 +94,30 @@ class PageSupplier(ft.View):
                 )
             self.update()  # Actualiza la vista después de modificar la tabla
         except Exception as e:
-            show_error_message(self.page, f"Error al cargar los proveedores: {str(e)}")
+            show_error_message(
+                self.page, f"Error al cargar los proveedores: {str(e)}")
 
     def edit_supplier(self, supplier):
         try:
             self.page.client_storage.set("edit_supplier_id", supplier.id)
             self.page.go("/editar_proveedor")
         except Exception as e:
-            show_error_message(self.page, f"Error al editar el proveedor: {str(e)}")
+            show_error_message(
+                self.page, f"Error al editar el proveedor: {str(e)}")
 
     def delete_supplier(self, supplier):
         try:
             self.supplier_service.delete_supplier(supplier.id)
-            show_success_message(self.page, "Proveedor eliminado exitosamente.")
+            show_success_message(
+                self.page, "Proveedor eliminado exitosamente.")
             self.load_suppliers()
         except Exception as e:
-            show_error_message(self.page, f"Error al eliminar el proveedor: {str(e)}")
+            show_error_message(
+                self.page, f"Error al eliminar el proveedor: {str(e)}")
+
+    def handle_navigation(self, e):
+        try:
+            route = get_route_for_index(e.control.selected_index)
+            self.page.go(route)
+        except Exception as e:
+            show_error_message(self.page, f"Navigation error: {str(e)}")
