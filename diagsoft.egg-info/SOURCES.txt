@@ -32,7 +32,10 @@ pages/auth/login.py
 pages/auth/register.py
 pages/auth/reset_password.py
 pages/dashboard/__init__.py
+pages/dashboard/content.py
 pages/dashboard/dashboard.py
+pages/dashboard/navigation.py
+pages/dashboard/stats.py
 pages/sales/__init__.py
 pages/sales/make_sale.py
 pages/sales/see_sales.py

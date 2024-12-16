@@ -3,8 +3,9 @@ from services.authService import AuthService
 from ui.components.alerts import show_error_message, show_success_message
 from models.User import UserRole
 
-class RegisterView:
+class RegisterView(ft.View):
     def __init__(self, page: ft.Page, session):
+        super().__init__()
         self.page = page
         self.auth_service = AuthService(session)
         self.build_ui()

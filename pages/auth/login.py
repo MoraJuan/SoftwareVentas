@@ -13,45 +13,67 @@ class LoginView(ft.View):
         self.username_field = ft.TextField(
             label="Usuario",
             width=300,
-            autofocus=True
+            autofocus=True,
+            bgcolor=ft.colors.BLACK38,
+            border_color=ft.colors.WHITE,
+            color=ft.colors.WHITE
         )
         
         self.password_field = ft.TextField(
             label="Contraseña",
             width=300,
-            password=True
+            password=True,
+            bgcolor=ft.colors.BLACK38,
+            border_color=ft.colors.WHITE,
+            color=ft.colors.WHITE
         )
         
         self.login_button = ft.ElevatedButton(
             "Iniciar sesión",
             width=300,
-            on_click=self.handle_login
+            on_click=self.handle_login,
+            bgcolor=ft.colors.WHITE,
+            color=ft.colors.BLUE_GREY_900
         )
         
-        self.register_link = ft.TextButton(
-            "¿No tienes cuenta? Regístrate",
-            on_click=lambda _: self.page.go("/register")
-        )
+        # Uncomment these lines if you want to add register and reset password links
+        # self.register_link = ft.TextButton(
+        #     "¿No tienes cuenta? Regístrate",
+        #     on_click=lambda _: self.page.go("/register"),
+        #     color=ft.colors.WHITE
+        # )
         
-        self.reset_password_link = ft.TextButton(
-            "¿Olvidaste tu contraseña?",
-            on_click=lambda _: self.page.go("/reset-password")
-        )
+        # self.reset_password_link = ft.TextButton(
+        #     "¿Olvidaste tu contraseña?",
+        #     on_click=lambda _: self.page.go("/reset-password"),
+        #     color=ft.colors.WHITE
+        # )
         
         login_card = ft.Card(
             content=ft.Container(
-                content=ft.Column([
-                    ft.Text("Iniciar sesión", size=30, weight=ft.FontWeight.BOLD),
-                    self.username_field,
-                    self.password_field,
-                    self.login_button,
-                    self.register_link,
-                    self.reset_password_link
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=20),
-                padding=30
-            )
+                content=ft.Column(
+                    [
+                        ft.Text("Iniciar sesión", size=30, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                        self.username_field,
+                        self.password_field,
+                        self.login_button,
+                        # Uncomment these lines if you want to add register and reset password links
+                        # self.register_link,
+                        # self.reset_password_link
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=20
+                ),
+                padding=30,
+                bgcolor=ft.colors.BLACK38,
+                border_radius=ft.border_radius.all(10),
+                shadow=ft.BoxShadow(
+                    spread_radius=2,
+                    blur_radius=10,
+                    color=ft.colors.BLACK38
+                )
+            ),
+            width=400  # Set a fixed width for the card to avoid stretching
         )
         
         self.controls = [
@@ -59,7 +81,7 @@ class LoginView(ft.View):
                 content=login_card,
                 alignment=ft.alignment.center,
                 expand=True,
-                bgcolor=ft.colors.BLUE_GREY_50,
+                bgcolor=ft.colors.BLACK38,
             )
         ]
     
