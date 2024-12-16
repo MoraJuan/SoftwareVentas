@@ -7,6 +7,7 @@ from pages.supplier.PageSupplierForm import PageSupplierForm
 from pages.customer.PageCustomer import PageCustomer
 from pages.customer.PageCustomerForm import PageCustomerForm
 from pages.sales.make_sale import MakeSaleView
+#from pages.sales.see_sales import SeeSalesView
 from pages.auth import LoginView
 from pages.auth import RegisterView
 from pages.auth import ResetPasswordView
