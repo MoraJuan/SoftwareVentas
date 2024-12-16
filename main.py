@@ -2,6 +2,7 @@ import flet
 from flet import Page
 from database.connection import init_db, SessionLocal
 from pages.product.PageProduct import PageProduct
+from pages.product.PageProductForm import PageProductForm
 from pages.supplier.PageSupplier import PageSupplier
 from pages.supplier.PageSupplierForm import PageSupplierForm
 from pages.customer.PageCustomer import PageCustomer
@@ -51,6 +52,8 @@ def main(page: Page):
             view = MakeSaleView(page, session)
         elif page.route == "/ver_productos":
             view = PageProduct(page, session)
+        elif page.route == "/agregar_productos":
+            view = PageProductForm(page, session)
         elif page.route == "/ver_proveedores":
             view = PageSupplier(page, session)
         elif page.route == "/agregar_proveedor":
