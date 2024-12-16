@@ -14,6 +14,18 @@ class ProductService:
         """Obtiene un producto por su ID"""
         return self.db.query(Product).filter(Product.id == product_id).first()
 
+    def get_products_by_name(self, name: str) -> List[Product]:
+        """Obtiene productos por su nombre"""
+        return self.db.query(Product).filter(Product.name.ilike(f"%{name}%")).all()
+
+    def get_products_by_category(self, category: str) -> List[Product]:
+        """Obtiene productos por su categoría"""
+        return self.db.query(Product).filter(Product.category.ilike(f"%{category}%")).all()
+
+    def get_products_by_price_range(self, min_price: float, max_price: float) -> List[Product]:
+        """Obtiene productos por rango de precio"""
+        return self.db.query(Product).filter(Product.price >= min_price, Product.price <= max_price).all()
+
     def create_product(self, product_data: dict) -> Product:
         """Crea un nuevo producto"""
         product = Product(**product_data)
