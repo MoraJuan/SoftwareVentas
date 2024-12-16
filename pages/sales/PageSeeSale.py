@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from services.saleService import SaleService
 from ui.components.alerts import show_error_message
-from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 
 class SeeSalesView(ft.View):

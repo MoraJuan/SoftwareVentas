@@ -1,6 +1,6 @@
 import flet as ft
 from sqlalchemy.orm import Session
-from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+from ui.components.navigation import create_navigation_rail, get_route_for_index
 from services.supplierService import SupplierService
 from ui.components.alerts import show_success_message, show_error_message
 from ui.components.data_table import DataTable
