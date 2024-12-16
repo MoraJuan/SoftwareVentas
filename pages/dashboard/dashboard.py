@@ -2,7 +2,7 @@ import flet as ft
 from datetime import datetime
 from services.saleService import SaleService
 from services.productService import ProductService
-from .navigation import create_navigation_rail, get_route_for_index
+from ui.components.navigation import create_navigation_rail, get_route_for_index
 from .stats import create_stats_row
 from ui.components.alerts import show_error_message
 

@@ -5,7 +5,7 @@ from services.saleService import SaleService
 from services.productService import ProductService
 from services.customerService import CustomerService
 from ui.components.alerts import show_success_message, show_error_message
-from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 
 class MakeSaleView(ft.View):

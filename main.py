@@ -1,19 +1,17 @@
 import flet
 from flet import Page
 from database.connection import init_db, SessionLocal
-from pages.PageHome import PageHome
-from pages.PageProduct import PageProduct
-from pages.PageSupplier import PageSupplier
-from pages.PageSupplierForm import PageSupplierForm
-from pages.PageCustomer import PageCustomer
-from pages.PageCustomerForm import PageCustomerForm
+from pages.product.PageProduct import PageProduct
+from pages.supplier.PageSupplier import PageSupplier
+from pages.supplier.PageSupplierForm import PageSupplierForm
+from pages.customer.PageCustomer import PageCustomer
+from pages.customer.PageCustomerForm import PageCustomerForm
 from pages.sales.make_sale import MakeSaleView
-from pages.sales.see_sales import SeeSalesView
 from pages.auth import LoginView
 from pages.auth import RegisterView
 from pages.auth import ResetPasswordView
 from pages.dashboard.dashboard import DashboardView
-from pages.PageSeeSale import SeeSalesView
+from pages.sales.PageSeeSale import SeeSalesView
 # Inicializar la base de datos
 init_db()
 
@@ -47,8 +45,6 @@ def main(page: Page):
         #    view = ResetPasswordView(page, session)
         elif page.route == "/dashboard":
             view = DashboardView(page, session)
-        elif page.route == "/" or page.route == "/home":
-            view = PageHome(page)
         elif page.route == "/realizar_venta":
             view = MakeSaleView(page, session)
         elif page.route == "/ver_productos":

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from services.customerService import CustomerService
 from ui.components.data_table import DataTable
 from ui.components.alerts import show_success_message, show_error_message
-from pages.dashboard.navigation import create_navigation_rail, get_route_for_index
+from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 
 class PageCustomer(ft.View):
@@ -24,6 +24,7 @@ class PageCustomer(ft.View):
                 ft.DataColumn(ft.Text("ID")),
                 ft.DataColumn(ft.Text("Nombre")),
                 ft.DataColumn(ft.Text("Email")),
+                ft.DataColumn(ft.Text("Acciones")),
             ],
             rows=[]
         )
@@ -62,6 +63,22 @@ class PageCustomer(ft.View):
                             ft.DataCell(ft.Text(str(customer.id))),
                             ft.DataCell(ft.Text(customer.name)),
                             ft.DataCell(ft.Text(customer.email)),
+                            ft.DataCell(
+                                ft.Row([
+                                    ft.IconButton(
+                                        icon=ft.icons.EDIT,
+                                        tooltip="Editar",
+                                        on_click=lambda e, c=customer: self.on_edit_customer(
+                                            c)
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.icons.DELETE,
+                                        tooltip="Eliminar",
+                                        on_click=lambda e, c=customer: self.on_delete_customer(
+                                            c)
+                                    ),
+                                ])
+                            ),
                         ]
                     )
                 )
@@ -72,7 +89,7 @@ class PageCustomer(ft.View):
 
     def on_edit_customer(self, customer):
         try:
-            self.page.client_storage.set("edit_customer_id", customer["ID"])
+            self.page.client_storage.set("edit_customer_id", customer.id)
             self.page.go("/editar_comprador")
         except Exception as e:
             show_error_message(
@@ -80,8 +97,7 @@ class PageCustomer(ft.View):
 
     def on_delete_customer(self, customer):
         try:
-            customer_id = customer["ID"]
-            self.customer_service.delete_customer(customer_id)
+            self.customer_service.delete_customer(customer.id)
             show_success_message(self.page, "Comprador eliminado exitosamente")
             self.load_customers()
         except Exception as e:
