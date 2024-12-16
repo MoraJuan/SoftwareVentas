@@ -4,6 +4,7 @@ from ui.components.alerts import show_error_message, show_success_message
 
 class ResetPasswordView:
     def __init__(self, page: ft.Page, session):
+        super().__init__()
         self.page = page
         self.auth_service = AuthService(session)
         self.build_ui()
