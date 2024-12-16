@@ -18,30 +18,31 @@ init_db()
 # Crear una sesión
 session = SessionLocal()
 
+
 def main(page: Page):
     page.title = "DiagSoft"
     page.window_width = 1200
     page.window_height = 800
     page.padding = 0
-    
+
     def route_change(route):
         page.views.clear()
-        
+
         # Verificar autenticación
         token = page.client_storage.get("token")
         public_routes = ["/login", "/register", "/reset-password"]
-        
+
         if not token and page.route not in public_routes:
             page.go("/login")
             return
-            
+
         # Crear vista según la ruta
         view = None
         if page.route == "/login":
             view = LoginView(page, session)
-        #elif page.route == "/register":
+        # elif page.route == "/register":
         #    view = RegisterView(page, session)
-        #elif page.route == "/reset-password":
+        # elif page.route == "/reset-password":
         #    view = ResetPasswordView(page, session)
         elif page.route == "/dashboard":
             view = DashboardView(page, session)
@@ -63,7 +64,7 @@ def main(page: Page):
             view = PageCustomerForm(page, session, edit_mode=True)
         elif page.route == "/ver_ventas":
             view = SeeSalesView(page, session)
-        
+
         # Actualizar la página
         if view:
             page.views.append(view)
@@ -71,6 +72,7 @@ def main(page: Page):
 
     page.on_route_change = route_change
     page.go("/login")
+
 
 if __name__ == "__main__":
     flet.app(target=main, assets_dir="assets")
