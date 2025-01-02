@@ -1,5 +1,7 @@
 import flet as ft
 
+from ui.components.alerts import show_error_message
+
 
 def create_navigation_rail(selected_index: int, on_change):
     return ft.NavigationRail(
@@ -9,7 +11,7 @@ def create_navigation_rail(selected_index: int, on_change):
         min_extended_width=200,
         extended=False,
         expand=False,
-        height=500,  # Esto hace que el NavigationRail ocupe el espacio restante
+        height=500, 
         destinations=[
             ft.NavigationRailDestination(
                 icon=ft.icons.DASHBOARD,
@@ -40,10 +42,29 @@ def create_navigation_rail(selected_index: int, on_change):
                 icon=ft.icons.RECEIPT_LONG,
                 selected_icon=ft.icons.RECEIPT_LONG,
                 label="Ver Ventas"
-            )
+            ),
+            logout_button()
         ],
         on_change=on_change
     )
+
+
+def logout_button():
+    return ft.IconButton(
+        icon=ft.icons.LOGOUT,
+        tooltip="Cerrar sesión",
+        on_click=handle_logout,
+        # label="Cerrar sesión"
+    )
+
+
+def handle_logout(e):
+    try:
+        ft.Page.client_storage.remove("token")
+        ft.Page.client_storage.remove("user_role")
+        ft.Page.go("/login")
+    except Exception as e:
+        show_error_message(ft.Page, f"Logout error: {str(e)}")
 
 
 def get_route_for_index(index: int) -> str:

@@ -10,7 +10,7 @@ from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 class SeeSalesView(ft.View):
     def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_ventas", controls=[], padding=20)
+        super().__init__(route="/ver_ventas", controls=[], padding=0)
         self.page = page
         self.session = session
         self.page.title = "Historial de Ventas"
@@ -52,20 +52,28 @@ class SeeSalesView(ft.View):
 
         # Layout de la vista
         self.controls = [
-            ft.Row([
-                self.navigation_rail,
-                ft.Column([
-                    ft.Text("Historial de Ventas", size=20,
-                                weight=ft.FontWeight.BOLD),
-                    ft.Row([
-                        self.date_from,
-                        self.date_to,
-                        self.filter_button
-                    ], spacing=10),
-                    self.sales_table
-                ], spacing=20)
-            ])
-        ]
+            ft.Container(
+                content=ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("Historial de Ventas", size=20,
+                                    weight=ft.FontWeight.BOLD),
+                            ft.Row([
+                                self.date_from,
+                                self.date_to,
+                                self.filter_button
+                            ], spacing=10),
+                            self.sales_table
+                        ],
+                            scroll=ft.ScrollMode.AUTO
+                        ),
+                        expand=True,
+                        padding=20
+                    )
+                ]),
+                expand=True,
+            )]
 
         # Cargar las ventas inicialmente
         self.load_sales()

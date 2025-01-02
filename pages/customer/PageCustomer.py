@@ -8,7 +8,7 @@ from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 class PageCustomer(ft.View):
     def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_compradores", controls=[], padding=20)
+        super().__init__(route="/ver_compradores", controls=[], padding=0)
         self.page = page
         self.session = session
         self.page.title = "Lista de Compradores"
@@ -35,22 +35,29 @@ class PageCustomer(ft.View):
         )
 
         self.controls = [
-            ft.Row([
-                self.navigation_rail,
-                ft.Column([
-                    ft.Row([
-                        ft.Text("Compradores",
-                                weight=ft.FontWeight.BOLD, size=20),
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    self.add_button,
-                    self.customer_table
-                ], spacing=20)
-            ])
-
-        ]
+            ft.Container(
+                content=ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Row([
+                                ft.Text("Compradores",
+                                        weight=ft.FontWeight.BOLD, size=20),
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            self.add_button,
+                            self.customer_table
+                        ],
+                            spacing=20,
+                            scroll=ft.ScrollMode.AUTO
+                        ),
+                        expand=True,
+                        padding=20
+                    )
+                ]),
+                expand=True,
+            )]
 
         self.load_customers()
-        # Do not call self.update() here; it's handled automatically
 
     def load_customers(self):
         try:

@@ -5,9 +5,10 @@ from services.productService import ProductService
 from ui.components.alerts import show_error_message
 from ui.components.navigation import create_navigation_rail, get_route_for_index
 
+
 class PageProduct(ft.View):
     def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_productos", controls=[], padding=20)
+        super().__init__(route="/ver_productos", controls=[], padding=0)
         self.page = page
         self.session = session
         self.page.title = "Lista de Productos"
@@ -15,12 +16,6 @@ class PageProduct(ft.View):
         self.build_ui()
 
     def build_ui(self):
-        self.controls = [
-            self.create_main_layout()
-        ]
-        self.load_products()
-
-    def create_main_layout(self):
         self.navigation_rail = create_navigation_rail(
             0, self.handle_navigation)
 
@@ -40,14 +35,28 @@ class PageProduct(ft.View):
             on_click=lambda e: self.page.go("/agregar_productos")
         )
 
-        return ft.Row([
-            self.navigation_rail,
-            ft.Column([
-                ft.Text("Productos", weight=ft.FontWeight.BOLD, size=20),
-                self.add_button,
-                self.product_table
-            ], spacing=20)
-        ])
+        self.controls = [
+            ft.Container(
+                content=ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("Productos",
+                                    weight=ft.FontWeight.BOLD, size=20),
+                            self.add_button,
+                            self.product_table
+                        ],
+                            scroll=ft.ScrollMode.AUTO
+                        ),
+                        expand=True,
+                        padding=20,
+
+                    )
+                ]),
+                expand=True,
+            )]
+
+        self.load_products()
 
     def load_products(self):
         try:

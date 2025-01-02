@@ -8,7 +8,7 @@ from ui.components.data_table import DataTable
 
 class PageSupplier(ft.View):
     def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_proveedores", controls=[], padding=20)
+        super().__init__(route="/ver_proveedores", controls=[], padding=0)
         self.page = page
         self.session = session
         self.page.title = "Lista de Proveedores"
@@ -45,17 +45,26 @@ class PageSupplier(ft.View):
 
         # Layout de la vista
         self.controls = [
-            ft.Row([
-                self.navigation_rail,
-                ft.Column([
-                    ft.Row([
-                        ft.Text("Proveedores",
-                                weight=ft.FontWeight.BOLD, size=20),
-                    ]),
-                    self.add_button,
-                    self.supplier_table
-                ])
-            ])
+            ft.Container(
+                content=ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Row([
+                                ft.Text("Proveedores",
+                                        weight=ft.FontWeight.BOLD, size=20),
+                            ]),
+                            self.add_button,
+                            self.supplier_table
+                        ],
+                            scroll=ft.ScrollMode.AUTO
+                        ),
+                        expand=True,
+                        padding=20
+                    )
+                ]),
+                expand=True,
+            )
         ]
 
         self.load_suppliers()
