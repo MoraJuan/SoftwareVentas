@@ -11,7 +11,7 @@ def create_navigation_rail(selected_index: int, on_change):
         min_extended_width=200,
         extended=False,
         expand=False,
-        height=500, 
+        height=500,
         destinations=[
             ft.NavigationRailDestination(
                 icon=ft.icons.DASHBOARD,
