@@ -7,7 +7,7 @@ from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 class MakeSaleView(ft.View):
     def __init__(self, page: ft.Page, session):
-        super().__init__()
+        super().__init__(controls=[], padding=0)
         self.page = page
         self.product_service = ProductService(session)
         self.sale_service = SaleService(session)
@@ -80,31 +80,35 @@ class MakeSaleView(ft.View):
 
         # Layout of the view
         self.controls = [
-            ft.Row([
-                self.navigation_rail,
-                ft.Container(
-                    padding=20,
-                    content=ft.Column([
-                        ft.Text("Realizar Venta", size=20,
+            ft.Container(
+                content=ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        padding=20,
+                        content=ft.Column([
+                            ft.Text("Realizar Venta", size=20,
                                     weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            self.search_name_input,
-                            self.search_category_input,
-                            self.min_price_input,
-                            self.max_price_input,
-                            self.search_button
-                        ], spacing=10),
-                        self.product_dropdown,
-                        self.quantity_input,
-                        self.add_product_button,
-                        self.cart_table,
-                        self.total_text,
-                        ft.Row([
-                            self.finalize_sale_button
-                        ], spacing=10)
-                    ], spacing=20)
-                )])
-        ]
+                            ft.Row([
+                                self.search_name_input,
+                                self.search_category_input,
+                                self.min_price_input,
+                                self.max_price_input,
+                                self.search_button
+                            ], spacing=10),
+                            self.product_dropdown,
+                            self.quantity_input,
+                            self.add_product_button,
+                            self.cart_table,
+                            self.total_text,
+                            ft.Row([
+                                self.finalize_sale_button
+                            ], spacing=10)
+                        ], spacing=20)
+                    )],
+                    scroll=ft.ScrollMode.AUTO
+                ),
+                expand=True
+            )]
 
     def get_product_options(self):
         products = self.product_service.get_all_products()
