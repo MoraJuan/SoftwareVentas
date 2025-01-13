@@ -7,11 +7,10 @@ def create_navigation_rail(selected_index: int, on_change):
     return ft.NavigationRail(
         selected_index=selected_index,
         label_type=ft.NavigationRailLabelType.ALL,
-        min_width=100,
+        min_width=72,
         min_extended_width=200,
-        extended=False,
-        expand=False,
-        height=500,
+        extended=True,
+        group_alignment=-1.0,
         destinations=[
             ft.NavigationRailDestination(
                 icon=ft.icons.DASHBOARD,
@@ -43,29 +42,9 @@ def create_navigation_rail(selected_index: int, on_change):
                 selected_icon=ft.icons.RECEIPT_LONG,
                 label="Ver Ventas"
             ),
-            logout_button()
         ],
         on_change=on_change
     )
-
-
-def logout_button():
-    return ft.IconButton(
-        icon=ft.icons.LOGOUT,
-        tooltip="Cerrar sesión",
-        on_click=handle_logout,
-        # label="Cerrar sesión"
-    )
-
-
-def handle_logout(e):
-    try:
-        ft.Page.client_storage.remove("token")
-        ft.Page.client_storage.remove("user_role")
-        ft.Page.go("/login")
-    except Exception as e:
-        show_error_message(ft.Page, f"Logout error: {str(e)}")
-
 
 def get_route_for_index(index: int) -> str:
     routes = {
@@ -77,3 +56,10 @@ def get_route_for_index(index: int) -> str:
         5: "/ver_ventas"
     }
     return routes.get(index, "/dashboard")
+
+def handle_navigation(e):
+    try:
+        route = get_route_for_index(e.control.selected_index)
+        e.page.go(route)
+    except Exception as e:
+        show_error_message(e.page, f"Error de navegación: {str(e)}")

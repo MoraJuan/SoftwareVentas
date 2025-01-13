@@ -26,6 +26,7 @@ def main(page: Page):
     page.window_width = 1200
     page.window_height = 800
     page.padding = 0
+    
 
     def route_change(route):
         page.views.clear()

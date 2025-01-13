@@ -2,6 +2,7 @@ import flet as ft
 from sqlalchemy.orm import Session
 from services.supplierService import SupplierService
 from ui.components.alerts import show_success_message, show_error_message
+import re
 
 class PageSupplierForm(ft.View):
     def __init__(self, page: ft.Page, session: Session, edit_mode=False):
@@ -85,39 +86,59 @@ class PageSupplierForm(ft.View):
                 self.page, f"Error al cargar los datos del proveedor: {str(e)}")
 
     def save_supplier(self, e):
-        try:
-            if not all([
-                self.name_field.value,
-                self.email_field.value,
-                self.phone_field.value,
-                self.address_field.value
-            ]):
+            try:
+                name = self.name_field.value.strip()
+                email = self.email_field.value.strip()
+                phone = self.phone_field.value.strip()
+                address = self.address_field.value.strip()
+
+                # Validaciones
+                if not all([name, email, phone, address]):
+                    show_error_message(
+                        self.page, "Por favor complete todos los campos")
+                    return
+
+                if not self.validate_email(email):
+                    show_error_message(
+                        self.page, "Por favor ingrese un correo electrónico válido")
+                    return
+
+                if not self.validate_phone(phone):
+                    show_error_message(
+                        self.page, "Por favor ingrese un número de teléfono válido")
+                    return
+
+                supplier_data = {
+                    "name": name,
+                    "email": email,
+                    "phone": phone,
+                    "address": address
+                }
+
+                if self.edit_mode:
+                    supplier_id = self.page.client_storage.get("edit_supplier_id")
+                    self.supplier_service.update_supplier(
+                        supplier_id, supplier_data)
+                    message = "Proveedor actualizado exitosamente"
+                else:
+                    self.supplier_service.create_supplier(supplier_data)
+                    message = "Proveedor creado exitosamente"
+
+                show_success_message(self.page, message)
+                self.go_back(None)
+
+            except Exception as e:
                 show_error_message(
-                    self.page, "Por favor complete todos los campos")
-                return
+                    self.page, f"Error al guardar el proveedor: {str(e)}")
 
-            supplier_data = {
-                "name": self.name_field.value,
-                "email": self.email_field.value,
-                "phone": self.phone_field.value,
-                "address": self.address_field.value
-            }
+    def validate_email(self, email: str) -> bool:
+        """Valida el formato del correo electrónico"""
+        regex = r'^\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        return re.match(regex, email) is not None
 
-            if self.edit_mode:
-                supplier_id = self.page.client_storage.get("edit_supplier_id")
-                self.supplier_service.update_supplier(
-                    supplier_id, supplier_data)
-                message = "Proveedor actualizado exitosamente"
-            else:
-                self.supplier_service.create_supplier(supplier_data)
-                message = "Proveedor creado exitosamente"
-
-            show_success_message(self.page, message)
-            self.go_back(None)
-
-        except Exception as e:
-            show_error_message(
-                self.page, f"Error al guardar el proveedor: {str(e)}")
+    def validate_phone(self, phone: str) -> bool:
+        """Valida que el número de teléfono solo contenga dígitos y tenga una longitud adecuada"""
+        return phone.isdigit() and 7 <= len(phone) <= 15
 
     def go_back(self, e):
         if self.edit_mode:

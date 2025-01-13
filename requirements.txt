@@ -1,4 +1,4 @@
-flet==0.22.*
+flet==0.25.2
 sqlalchemy>=2.0.0
 python-jose[cryptography]>=3.3.0
 passlib>=1.7.4

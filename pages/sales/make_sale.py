@@ -1,9 +1,10 @@
 import flet as ft
 from services.productService import ProductService
 from services.saleService import SaleService
+from services.customerService import CustomerService
 from ui.components.alerts import show_error_message, show_success_message
 from ui.components.navigation import create_navigation_rail, get_route_for_index
-
+import logging
 
 class MakeSaleView(ft.View):
     def __init__(self, page: ft.Page, session):
@@ -11,12 +12,29 @@ class MakeSaleView(ft.View):
         self.page = page
         self.product_service = ProductService(session)
         self.sale_service = SaleService(session)
+        self.customer_service = CustomerService(session)
         self.cart = []
         self.build_ui()
 
     def build_ui(self):
         self.navigation_rail = create_navigation_rail(
-            0, self.handle_navigation)
+            1, self.handle_navigation)
+
+        self.customer_dropdown = ft.Dropdown(
+            label="Cliente",
+            width=300,
+            options=self.get_customer_options()
+        )
+
+        self.payment_method_dropdown = ft.Dropdown(
+            label="Método de Pago",
+            width=300,
+            options=[
+                ft.dropdown.Option("efectivo", "Efectivo"),
+                ft.dropdown.Option("tarjeta", "Tarjeta"),
+                ft.dropdown.Option("transferencia", "Transferencia")
+            ]
+        )
 
         self.product_dropdown = ft.Dropdown(
             label="Producto",
@@ -26,32 +44,13 @@ class MakeSaleView(ft.View):
 
         self.quantity_input = ft.TextField(
             label="Cantidad",
-            width=300
+            width=300,
+            keyboard_type=ft.KeyboardType.NUMBER
         )
 
-        self.search_name_input = ft.TextField(
-            label="Buscar por Nombre",
-            width=300
-        )
-
-        self.search_category_input = ft.TextField(
-            label="Buscar por Categoría",
-            width=300
-        )
-
-        self.min_price_input = ft.TextField(
-            label="Precio Mínimo",
-            width=140
-        )
-
-        self.max_price_input = ft.TextField(
-            label="Precio Máximo",
-            width=140
-        )
-
-        self.search_button = ft.ElevatedButton(
-            "Buscar",
-            on_click=self.search_products
+        self.add_product_button = ft.ElevatedButton(
+            "Agregar Producto",
+            on_click=self.add_product
         )
 
         self.cart_table = ft.DataTable(
@@ -66,11 +65,7 @@ class MakeSaleView(ft.View):
         )
 
         self.total_text = ft.Text(
-            "Total: $0.00", size=16, weight=ft.FontWeight.BOLD)
-
-        self.add_product_button = ft.ElevatedButton(
-            "Agregar Producto",
-            on_click=self.add_product
+            "Total: $0.00", size=16, weight=ft.FontWeight.BOLD
         )
 
         self.finalize_sale_button = ft.ElevatedButton(
@@ -86,82 +81,56 @@ class MakeSaleView(ft.View):
                     ft.Container(
                         padding=20,
                         content=ft.Column([
-                            ft.Text("Realizar Venta", size=20,
-                                    weight=ft.FontWeight.BOLD),
+                            ft.Text("Realizar Venta", size=20, weight=ft.FontWeight.BOLD),
+                            self.customer_dropdown,
+                            self.payment_method_dropdown,
                             ft.Row([
-                                self.search_name_input,
-                                self.search_category_input,
-                                self.min_price_input,
-                                self.max_price_input,
-                                self.search_button
+                                self.product_dropdown,
+                                self.quantity_input,
+                                self.add_product_button
                             ], spacing=10),
-                            self.product_dropdown,
-                            self.quantity_input,
-                            self.add_product_button,
                             self.cart_table,
                             self.total_text,
-                            ft.Row([
-                                self.finalize_sale_button
-                            ], spacing=10)
+                            self.finalize_sale_button
                         ], spacing=20)
-                    )],
-                    scroll=ft.ScrollMode.AUTO
-                ),
+                    )
+                ]),
                 expand=True
-            )]
+            )
+        ]
+
+    def get_customer_options(self):
+        customers = self.customer_service.get_all_customers()
+        return [ft.dropdown.Option(str(customer.id), customer.name) for customer in customers]
 
     def get_product_options(self):
         products = self.product_service.get_all_products()
-        return [ft.dropdown.Option(key=product.id, text=product.name) for product in products]
-
-    def search_products(self, e):
-        try:
-            name = self.search_name_input.value
-            category = self.search_category_input.value
-            min_price = self.min_price_input.value
-            max_price = self.max_price_input.value
-
-            if name:
-                products = self.product_service.get_products_by_name(name)
-            elif category:
-                products = self.product_service.get_products_by_category(
-                    category)
-            elif min_price and max_price:
-                products = self.product_service.get_products_by_price_range(
-                    float(min_price), float(max_price))
-            else:
-                products = self.product_service.get_all_products()
-
-            self.product_dropdown.options = [ft.dropdown.Option(
-                key=product.id, text=product.name) for product in products]
-            self.product_dropdown.update()
-
-        except Exception as e:
-            show_error_message(
-                self.page, f"Error al buscar productos: {str(e)}")
+        return [ft.dropdown.Option(str(product.id), product.name) for product in products]
 
     def add_product(self, e):
         try:
-            # Obtener datos del producto desde el dropdown y el campo de entrada
-            product_id = self.get_product_id()
-            quantity = self.get_quantity()
+            product_id = int(self.product_dropdown.value)
+            quantity = int(self.quantity_input.value)
 
-            # Validar datos
             if not product_id or not quantity:
                 show_error_message(
-                    self.page, "Debe ingresar un producto y una cantidad válida")
+                    self.page, "Debe seleccionar un producto y una cantidad válida."
+                )
                 return
 
-            # Obtener información del producto desde la base de datos
             product = self.product_service.get_product_by_id(product_id)
             if not product:
-                show_error_message(self.page, "Producto no encontrado")
+                logging.error(f"Producto con ID {product_id} no encontrado.")
+                show_error_message(self.page, "Producto no encontrado.")
                 return
 
-            # Calcular el total del producto
+            if product.stock < quantity:
+                logging.error(f"Stock insuficiente para el producto ID {product_id}.")
+                show_error_message(self.page, "Stock insuficiente para el producto seleccionado.")
+                return
+
             total = product.price * quantity
 
-            # Agregar producto al carrito
             self.cart.append({
                 "product_id": product_id,
                 "name": product.name,
@@ -170,39 +139,19 @@ class MakeSaleView(ft.View):
                 "total": total
             })
 
-            # Actualizar la tabla del carrito
             self.update_cart_table()
+            show_success_message(self.page, "Producto agregado al carrito.")
 
-            # Mostrar mensaje de éxito
-            show_success_message(self.page, "Producto agregado al carrito")
-
-        except Exception as e:
+        except ValueError as ve:
+            logging.error(f"ValueError: {ve}")
             show_error_message(
-                self.page, f"Error al agregar producto: {str(e)}")
-
-    def finalize_sale(self, e):
-        try:
-            if not self.cart:
-                show_error_message(self.page, "El carrito está vacío")
-                return
-
-            # Crear la venta en la base de datos
-            sale_data = {
-                "items": self.cart,
-                "total": sum(item["total"] for item in self.cart)
-            }
-            self.sale_service.create_sale(sale_data)
-
-            # Limpiar el carrito
-            self.cart.clear()
-            self.update_cart_table()
-
-            # Mostrar mensaje de éxito
-            show_success_message(self.page, "Venta finalizada con éxito")
-
+                self.page, "Por favor ingrese valores numéricos válidos para el ID del producto y la cantidad."
+            )
         except Exception as e:
+            logging.error(f"Exception: {e}")
             show_error_message(
-                self.page, f"Error al finalizar la venta: {str(e)}")
+                self.page, f"Error al agregar producto: {str(e)}"
+            )
 
     def update_cart_table(self):
         self.cart_table.rows = [
@@ -214,23 +163,53 @@ class MakeSaleView(ft.View):
                 ft.DataCell(ft.Text(f"${item['total']:.2f}"))
             ]) for item in self.cart
         ]
-        self.total_text.value = f"Total: ${
-            sum(item['total'] for item in self.cart):.2f}"
-        self.cart_table.update()  # Actualiza la tabla
-        self.total_text.update()  # Actualiza el texto del total
-        self.page.update()  # Actualiza la página
+        self.total_text.value = f"Total: ${sum(item['total'] for item in self.cart):.2f}"
+        self.cart_table.update()
+        self.total_text.update()
 
-    def get_product_id(self):
-        # Obtener el ID del producto desde el dropdown
-        return int(self.product_dropdown.value)
+    def finalize_sale(self, e):
+        try:
+            if not self.cart:
+                show_error_message(self.page, "El carrito está vacío.")
+                return
 
-    def get_quantity(self):
-        # Obtener la cantidad desde el campo de entrada
-        return int(self.quantity_input.value)
+            customer_id = self.customer_dropdown.value
+            payment_method = self.payment_method_dropdown.value.lower()
+
+            if not customer_id or not payment_method:
+                show_error_message(self.page, "Por favor seleccione un cliente y método de pago.")
+                return
+
+            try:
+                customer_id = int(customer_id)
+            except ValueError:
+                show_error_message(self.page, "ID de cliente inválido")
+                return
+
+            sale_data = {
+                "customer_id": customer_id,
+                "employee_id": 1,
+                "payment_method": payment_method,
+                "items": self.cart,
+                "total": float(sum(item["total"] for item in self.cart))
+            }
+
+            result = self.sale_service.create_sale(sale_data)
+            if result:
+                show_success_message(self.page, "Venta finalizada con éxito.")
+                self.cart.clear()
+                self.update_cart_table()
+                self.page.go("/ver_ventas")
+            else:
+                show_error_message(self.page, "Error al crear la venta")
+
+        except Exception as e:
+            logging.error(f"Error en finalize_sale: {str(e)}")
+            show_error_message(self.page, f"Error al finalizar la venta: {str(e)}")
 
     def handle_navigation(self, e):
         try:
             route = get_route_for_index(e.control.selected_index)
             self.page.go(route)
         except Exception as e:
-            show_error_message(self.page, f"Navigation error: {str(e)}")
+            show_error_message(self.page, f"Error de navegación: {str(e)}")

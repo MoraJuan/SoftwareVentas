@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -12,50 +13,58 @@ class SaleService:
         self.product_service = ProductService(db)
 
     def create_sale(self, sale_data: dict) -> Sale:
-        """Crea una nueva venta y actualiza el inventario"""
         try:
-            # Crear la venta
+            # Create sale
             sale = Sale(
-                customer_id=sale_data['customer_id'],
-                employee_id=sale_data['employee_id'],
-                payment_method=sale_data['payment_method'],
-                total_amount=0,
+                customer_id=int(sale_data['customer_id']),
+                employee_id=int(sale_data['employee_id']),
+                payment_method=str(sale_data['payment_method']),
+                total_amount=float(sale_data['total']),
                 status='pending'
             )
+            
             self.db.add(sale)
-            self.db.flush()  # Obtener el ID de la venta
+            self.db.flush()  # Get sale.id
 
-            total_amount = 0
-            # Procesar cada item de la venta
-            for item_data in sale_data['items']:
-                product = self.product_service.get_product_by_id(item_data['product_id'])
-                if not product or product.stock < item_data['quantity']:
-                    raise ValueError(f"Stock insuficiente para el producto {product.name}")
+            # Process items
+            for item in sale_data['items']:
+                # Calculate subtotal
+                quantity = int(item['quantity'])
+                unit_price = float(item['price'])
+                subtotal = quantity * unit_price
 
-                subtotal = product.price * item_data['quantity']
                 sale_item = SaleItem(
                     sale_id=sale.id,
-                    product_id=product.id,
-                    quantity=item_data['quantity'],
-                    unit_price=product.price,
-                    subtotal=subtotal
+                    product_id=int(item['product_id']),
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    subtotal=subtotal  # Add subtotal
                 )
-                
-                # Actualizar stock
-                product.stock -= item_data['quantity']
-                total_amount += subtotal
-                
                 self.db.add(sale_item)
 
-            sale.total_amount = total_amount
+                # Update product stock
+                product = self.product_service.get_product_by_id(item['product_id'])
+                if product:
+                    product.stock -= quantity
+
             sale.status = 'completed'
             self.db.commit()
             return sale
 
         except Exception as e:
             self.db.rollback()
-            raise e
-
+            logging.error(f"Error creating sale: {str(e)}")
+            raise
+        
+    def get_current_employee_id(self) -> int:
+            """Obtiene el ID del empleado actual. Implementa según tu lógica."""
+            # Ejemplo: obtener desde almacenamiento del cliente
+            # Esto necesita ser adaptado según cómo manejes la sesión del empleado
+            employee_id = ...  # Implementa la lógica para obtener el employee_id
+            if not employee_id:
+                raise ValueError("ID de empleado no encontrado.")
+            return employee_id
+    
     def get_sale_by_id(self, sale_id: int) -> Optional[Sale]:
         """Obtiene una venta por su ID"""
         return self.db.query(Sale).filter(Sale.id == sale_id).first()
@@ -71,6 +80,20 @@ class SaleService:
         """Calcula el total de ventas en un rango de fechas"""
         sales = self.get_sales_by_date_range(start_date, end_date)
         return sum(sale.total_amount for sale in sales)
+    
+    def get_sales_between_dates(self, from_date: datetime, to_date: datetime) -> List[Sale]:
+        """Obtiene las ventas entre dos fechas con información del cliente"""
+        try:
+            sales = self.db.query(Sale)\
+                .join(Sale.customer)\
+                .filter(
+                    Sale.date >= from_date,
+                    Sale.date <= to_date
+                ).all()
+            return sales
+        except Exception as e:
+            logging.error(f"Error fetching sales: {str(e)}")
+            return []
 
     def cancel_sale(self, sale_id: int) -> bool:
         """Cancela una venta y restaura el inventario"""
