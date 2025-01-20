@@ -12,6 +12,9 @@ class SaleService:
         self.db = db
         self.product_service = ProductService(db)
 
+    def get_all_sales(self) -> List[Product]:
+        return self.db.query(Sale).all()
+
     def create_sale(self, sale_data: dict) -> Sale:
         try:
             # Create sale
