@@ -110,6 +110,14 @@ class MakeSaleView(ft.View):
             )
         ]
 
+    """ Costumers """
+
+    def get_customer_options(self):
+        customers = self.customer_service.get_all_customers()
+        return [ft.dropdown.Option(str(customer.id), customer.name) for customer in customers]
+
+    """ Products table """
+
     def get_initial_product_rows(self):
         products = self.product_service.get_all_products()
         self.product_quantities = {}
@@ -137,13 +145,31 @@ class MakeSaleView(ft.View):
         ]
 
     def update_quantity(self, product_id, quantity):
-        """Actualiza la cantidad en el diccionario al cambiar."""
         try:
             self.product_quantities[product_id] = int(quantity)
             print(self.product_quantities)
         except ValueError:
-            # Evita errores con entradas no numéricas
             self.product_quantities[product_id] = 0
+
+    def search_products(self, e):
+        try:
+            name = self.search_name_input.value
+            category = self.search_category_input.value
+
+            if name:
+                products = self.product_service.get_products_by_name(name)
+            elif category:
+                products = self.product_service.get_products_by_category(
+                    category)
+            else:
+                products = self.product_service.get_all_products()
+
+            self.product_table.rows = self.get_product_rows(products)
+            self.product_table.update()
+
+        except Exception as e:
+            show_error_message(
+                self.page, f"Error al buscar productos: {str(e)}")
 
     def add_product(self, e):
         try:
@@ -198,29 +224,7 @@ class MakeSaleView(ft.View):
             logging.error(f"Error inesperado: {e}")
             show_error_message(self.page, f"Error inesperado: {e}")
 
-    def search_products(self, e):
-        try:
-            name = self.search_name_input.value
-            category = self.search_category_input.value
-
-            if name:
-                products = self.product_service.get_products_by_name(name)
-            elif category:
-                products = self.product_service.get_products_by_category(
-                    category)
-            else:
-                products = self.product_service.get_all_products()
-
-            self.product_table.rows = self.get_product_rows(products)
-            self.product_table.update()
-
-        except Exception as e:
-            show_error_message(
-                self.page, f"Error al buscar productos: {str(e)}")
-
-    def get_customer_options(self):
-        customers = self.customer_service.get_all_customers()
-        return [ft.dropdown.Option(str(customer.id), customer.name) for customer in customers]
+    """ Cart table """
 
     def update_cart_table(self):
         self.cart_table.rows = [
@@ -232,7 +236,7 @@ class MakeSaleView(ft.View):
                 ft.DataCell(ft.IconButton(
                     icon=ft.icons.DELETE,
                     tooltip="Eliminar",
-                    on_click=lambda e, p=item: self.delete_product(
+                    on_click=lambda e, p=item: self.delete_product_cart(
                         p["product_id"])
                 )),
                 ft.DataCell(ft.Text(f"${item['total']:.2f}"))
@@ -242,6 +246,14 @@ class MakeSaleView(ft.View):
             sum(item['total'] for item in self.cart):.2f}"
         self.cart_table.update()
         self.total_text.update()
+
+    def delete_product_cart(self, product_id):
+        self.cart = [
+            item for item in self.cart if item['product_id'] != product_id]
+        self.update_cart_table()
+        show_success_message(self.page, "Producto eliminado del carrito.")
+
+    """ End sale """
 
     def finalize_sale(self, e):
         try:
@@ -285,11 +297,7 @@ class MakeSaleView(ft.View):
             show_error_message(
                 self.page, f"Error al finalizar la venta: {str(e)}")
 
-    def delete_product(self, product_id):
-        self.cart = [
-            item for item in self.cart if item['product_id'] != product_id]
-        self.update_cart_table()
-        show_success_message(self.page, "Producto eliminado del carrito.")
+    """ Navigation """
 
     def handle_navigation(self, e):
         try:
