@@ -34,13 +34,6 @@ class PageCustomer(ft.View):
                 on_change=self.filter_customers
             )
 
-            # Botón de refrescar
-            self.refresh_button = ft.IconButton(
-                icon=ft.icons.REFRESH,
-                tooltip="Actualizar",
-                on_click=lambda _: self.load_customers()
-            )
-
             # Botón de exportar a CSV
             self.export_button = ft.IconButton(
                 icon=ft.icons.DOWNLOAD,
@@ -77,20 +70,22 @@ class PageCustomer(ft.View):
 
             # Botón para agregar cliente
             self.add_button = ft.ElevatedButton(
-                "Agregar Comprador",
+                "Agregar Cliente",
                 on_click=lambda e: self.page.go("/agregar_comprador")
             )
 
+            self.load_customers()
+
             # Diseño del contenido
             content = ft.Column([
-                ft.Text("Compradores", size=20, weight=ft.FontWeight.BOLD),
+                ft.Text("Clientes", size=20, weight=ft.FontWeight.BOLD),
                 ft.Row([
                     self.search_field,
-                    self.refresh_button,
                     self.export_button
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 self.progress_bar,
                 self.add_button,
+                ft.Divider(height=20), 
                 self.customer_table,
                 ft.Row([
                     self.prev_button,
@@ -134,6 +129,7 @@ class PageCustomer(ft.View):
             if search_term in customer.name.lower() or search_term in customer.email.lower()
         ]
         self.update_table(filtered)
+        self.update()
 
     def export_to_csv(self, e):
         """Exportar la lista de clientes a un archivo CSV"""

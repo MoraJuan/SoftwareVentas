@@ -23,8 +23,9 @@ session = SessionLocal()
 
 def main(page: Page):
     page.title = "DiagSoft"
-    page.window_width = 1200
-    page.window_height = 800
+    # page.window_width = 1200
+    # page.window_height = 800
+    page.window_maximized = True
     page.padding = 0
     
 
