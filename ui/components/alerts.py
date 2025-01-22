@@ -8,10 +8,10 @@ def show_error_message(page: Optional[ft.Page], message: str):
         return
         
     try:
-        page.show_snack_bar(
+        page.open(
             ft.SnackBar(
                 content=ft.Text(message),
-                bgcolor=ft.colors.RED_600,
+                bgcolor=ft.Colors.RED_600,
                 duration=5000
             )
         )
@@ -27,10 +27,10 @@ def show_success_message(page: Optional[ft.Page], message: str):
         return
         
     try:
-        page.show_snack_bar(
+        page.open(
             ft.SnackBar(
                 content=ft.Text(message),
-                bgcolor=ft.colors.GREEN_600,
+                bgcolor=ft.Colors.GREEN_600,
                 duration=3000
             )
         )

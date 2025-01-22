@@ -38,4 +38,4 @@ class Sale(Base):
     )
     
     def __repr__(self):
-        return f"Venta(id={self.id}, total=${self.total_amount:.2f})"
+        return f"Venta(id={self.id}, total=${self.total_amount:.2f}, date={self.date}, total_amount={self.total_amount}, payment_method={self.payment_method}, status={self.status})"

@@ -1,4 +1,6 @@
 import flet as ft
+import csv
+from io import StringIO
 from datetime import datetime
 from sqlalchemy.orm import Session
 from services.saleService import SaleService
@@ -25,8 +27,6 @@ class SeeSalesView(ft.View):
            # Inicializar controles
             self.date_picker_from_label = datetime.now().strftime("%Y-%m-%d")
             self.date_picker_to_label = datetime.now().strftime("%Y-%m-%d")
-
-            print(self.date_picker_from_label)
 
             self.navigation_rail = create_navigation_rail(
                 5, self.handle_navigation)
@@ -157,11 +157,8 @@ class SeeSalesView(ft.View):
     def handle_date_picker_from_change(self, e):
         """Cuando el valor del DatePicker 'Desde' cambie"""
         selected_date = e.control.value
-        print(selected_date)
-        #2024-10-01 00:00:00
         self.date_picker_from_label = f"{
             selected_date.strftime('%Y-%m-%d')}"
-        print(self.date_picker_from_label)
         self.page.update()
 
     def handle_date_picker_to_change(self, e):
@@ -279,9 +276,9 @@ class SeeSalesView(ft.View):
                 cells=[
                     ft.DataCell(ft.Text(str(sale.id))),
                     ft.DataCell(ft.Text(sale.date.strftime("%Y-%m-%d"))),
-                    ft.DataCell(ft.Text(sale.buyer)),
+                    ft.DataCell(ft.Text(sale.customer_id)),
                     ft.DataCell(ft.Text(sale.payment_method)),
-                    ft.DataCell(ft.Text(str(sale.total))),
+                    ft.DataCell(ft.Text(str(sale.total_amount))),
                     ft.DataCell(ft.Text(sale.status)),
                 ]
             )
@@ -290,17 +287,16 @@ class SeeSalesView(ft.View):
     def load_sales(self):
         """Cargar ventas con indicación de progreso"""
         try:
-            print("Cargando ventas...")  # Añadir esta línea para verificar
-            self.progress_bar.visible = True
-            self.update()
-
+            # self.progress_bar.visible = True
+            # self.update()
             self.all_sales = self.sale_service.get_all_sales()
-            print('Ventas cargadas:', self.all_sales)
+
             self.current_page = 1
             self.update_pagination()
         except Exception as e:
             show_error_message(
                 self.page, f"Error al cargar las ventas: {str(e)}")
         finally:
-            self.progress_bar.visible = False
+            # self.progress_bar.visible = False
             self.update()
+
