@@ -3,6 +3,7 @@ from flet import Page
 from database.connection import init_db, SessionLocal
 from pages.product.PageProduct import PageProduct
 from pages.product.PageProductForm import PageProductForm
+from pages.reports.PageReports import PageReports
 from pages.supplier.PageSupplier import PageSupplier
 from pages.supplier.PageSupplierForm import PageSupplierForm
 from pages.customer.PageCustomer import PageCustomer
@@ -13,7 +14,7 @@ from pages.auth import LoginView
 from pages.auth import RegisterView
 from pages.auth import ResetPasswordView
 from pages.dashboard.dashboard import DashboardView
-from pages.sales.PageSeeSale import SeeSalesView
+from pages.reports.PageSeeSaleReports import SeeSalesView
 # Inicializar la base de datos
 init_db()
 
@@ -68,9 +69,13 @@ def main(page: Page):
             view = PageCustomerForm(page, session, edit_mode=False)
         elif page.route == "/editar_comprador":
             view = PageCustomerForm(page, session, edit_mode=True)
-        elif page.route == "/ver_ventas":
+        #elif page.route == "/ver_ventas":
+        #    view = SeeSalesView(page, session)
+        elif page.route == "/ver_reportes":
+            view = PageReports(page, session)
+        
+        elif page.route == "/ver_reportes/ventas":  # Add this route
             view = SeeSalesView(page, session)
-
         # Actualizar la página
         if view:
             page.views.append(view)

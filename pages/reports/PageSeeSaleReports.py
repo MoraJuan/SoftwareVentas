@@ -8,15 +8,47 @@ from ui.components.navigation import create_navigation_rail, get_route_for_index
 
 class SeeSalesView(ft.View):
     def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_ventas", controls=[], padding=0)
+        super().__init__(route="/ver_reportes/ventas", controls=[], padding=0)
         self.page = page
         self.session = session
         self.sale_service = SaleService(session)
         self.build_ui()
 
     def build_ui(self):
-        self.navigation_rail = create_navigation_rail(5, self.handle_navigation)
-        
+        self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
+        # Header with back button
+            # Header con el botón "Volver a Reportes"
+        header = ft.Row(
+        [
+            ft.IconButton(
+                icon=ft.icons.ARROW_BACK,
+                icon_color=ft.colors.BLUE,
+                tooltip="Volver a Reportes",
+                on_click=lambda _: self.page.go("/ver_reportes")
+            ),
+            ft.Text(
+                "Reporte de Ventas",
+                size=24,
+                weight=ft.FontWeight.BOLD
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.START
+        )
+
+
+        # Create sales table
+        self.sales_table = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ID")),
+                ft.DataColumn(ft.Text("Fecha")),
+                ft.DataColumn(ft.Text("Cliente")),
+                ft.DataColumn(ft.Text("Productos")),
+                ft.DataColumn(ft.Text("Total")),
+                ft.DataColumn(ft.Text("Estado"))
+            ],
+            rows=[]
+        )
+
         # Date filters
         self.date_from = ft.TextField(
             label="Desde",
@@ -32,21 +64,8 @@ class SeeSalesView(ft.View):
         )
         
         self.filter_button = ft.ElevatedButton(
-            "Filtrar",
-            on_click=self.load_sales
-        )
-
-        # Sales table
-        self.sales_table = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("Fecha")),
-                ft.DataColumn(ft.Text("Cliente")),
-                ft.DataColumn(ft.Text("Método Pago")),
-                ft.DataColumn(ft.Text("Total")),
-                ft.DataColumn(ft.Text("Estado"))
-            ],
-            rows=[]
+            "Filtrar ventas",
+            on_click=self.filter_sales
         )
 
         # Layout
@@ -57,9 +76,10 @@ class SeeSalesView(ft.View):
                     ft.Container(
                         padding=20,
                         content=ft.Column([
-                            ft.Text("Historial de Ventas", 
-                                  size=20, 
-                                  weight=ft.FontWeight.BOLD),
+                            header,
+                            ft.Text("Reporte de Ventas", 
+                                size=24, 
+                                weight=ft.FontWeight.BOLD),
                             ft.Row([
                                 self.date_from,
                                 self.date_to,
@@ -73,11 +93,8 @@ class SeeSalesView(ft.View):
                 expand=True
             )
         ]
-        
-        # Load initial sales
-        self.load_sales()
 
-    def load_sales(self, e=None):
+    def filter_sales(self, e):
         try:
             from_date = datetime.strptime(self.date_from.value, "%Y-%m-%d")
             to_date = datetime.strptime(self.date_to.value, "%Y-%m-%d") + timedelta(days=1)
@@ -92,7 +109,7 @@ class SeeSalesView(ft.View):
                         ft.DataCell(ft.Text(str(sale.id))),
                         ft.DataCell(ft.Text(sale.date.strftime("%Y-%m-%d %H:%M"))),
                         ft.DataCell(ft.Text(sale.customer.name if sale.customer else "N/A")),
-                        ft.DataCell(ft.Text(sale.payment_method)),
+                        ft.DataCell(ft.Text(", ".join([item.product.name for item in sale.items]))),
                         ft.DataCell(ft.Text(f"${sale.total_amount:.2f}")),
                         ft.DataCell(ft.Text(sale.status))
                     ])
@@ -101,8 +118,7 @@ class SeeSalesView(ft.View):
             self.sales_table.update()
             
         except Exception as e:
-            logging.error(f"Error loading sales: {str(e)}")
-            show_error_message(self.page, f"Error al cargar las ventas: {str(e)}")
+            show_error_message(self.page, f"Error al filtrar ventas: {str(e)}")
 
     def handle_navigation(self, e):
         try:

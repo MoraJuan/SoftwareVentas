@@ -15,8 +15,22 @@ class PageSupplier(ft.View):
 
     def build_ui(self):
         # Barra de navegación lateral
-        self.navigation_rail = create_navigation_rail(
-            4, self.handle_navigation
+        self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
+        header = ft.Row(
+        [
+            ft.IconButton(
+                icon=ft.icons.ARROW_BACK,
+                icon_color=ft.colors.BLUE,
+                tooltip="Volver a Reportes",
+                on_click=lambda _: self.page.go("/ver_reportes")
+            ),
+            ft.Text(
+                "Reporte de Ventas",
+                size=24,
+                weight=ft.FontWeight.BOLD
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.START
         )
 
         # Tabla de proveedores
@@ -44,10 +58,12 @@ class PageSupplier(ft.View):
             ft.Container(
                 content=ft.Row([
                     self.navigation_rail,  # Barra de navegación lateral
+
                     ft.Container(
                         padding=20,
                         expand=True,
                         content=ft.Column([
+                            header,
                             ft.Text("Proveedores", size=20, weight=ft.FontWeight.BOLD),
                             ft.Row(
                                 controls=[self.add_button],

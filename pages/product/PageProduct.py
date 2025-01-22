@@ -16,6 +16,22 @@ class PageProduct(ft.View):
     def build_ui(self):
         self.navigation_rail = create_navigation_rail(
             2, self.handle_navigation)
+        header = ft.Row(
+            [
+                ft.IconButton(
+                    icon=ft.icons.ARROW_BACK,
+                    icon_color=ft.colors.BLUE,
+                    tooltip="Volver a Reportes",
+                    on_click=lambda _: self.page.go("/ver_reportes")
+                ),
+                ft.Text(
+                    "Reporte de Ventas",
+                    size=24,
+                    weight=ft.FontWeight.BOLD
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.START
+            )
 
         self.product_table = ft.DataTable(
             columns=[
@@ -40,6 +56,7 @@ class PageProduct(ft.View):
                         ft.Container(
                             padding=20,
                             content=ft.Column([
+                                header,
                                 ft.Text("Productos", size=20, weight=ft.FontWeight.BOLD),
                                 ft.Container(
                                     content=self.add_button,
