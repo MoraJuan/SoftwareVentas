@@ -23,25 +23,10 @@ def create_navigation_rail(selected_index: int, on_change):
                 label="Realizar Venta"
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.INVENTORY,
-                selected_icon=ft.icons.INVENTORY,
-                label="Ver Productos"
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.icons.PEOPLE,
-                selected_icon=ft.icons.PEOPLE,
-                label="Ver Compradores"
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.icons.LOCAL_SHIPPING,
-                selected_icon=ft.icons.LOCAL_SHIPPING,
-                label="Ver Proveedores"
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.icons.RECEIPT_LONG,
-                selected_icon=ft.icons.RECEIPT_LONG,
-                label="Ver Ventas"
-            ),
+                icon=ft.icons.ASSESSMENT,
+                selected_icon=ft.icons.ASSESSMENT,
+                label="Reports"
+            )
         ],
         on_change=on_change
     )
@@ -50,10 +35,7 @@ def get_route_for_index(index: int) -> str:
     routes = {
         0: "/dashboard",
         1: "/realizar_venta",
-        2: "/ver_productos",
-        3: "/ver_compradores",
-        4: "/ver_proveedores",
-        5: "/ver_ventas"
+        2: "/ver_reportes"
     }
     return routes.get(index, "/dashboard")
 
