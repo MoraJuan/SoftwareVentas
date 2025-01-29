@@ -3,22 +3,28 @@ from datetime import datetime
 from ui.components.stats_card import StatsCard
 from ui.components.charts import LineChart, PieChart
 
+
 class DashboardContent:
     def __init__(self, page: ft.Page, services):
         self.page = page
         self.sale_service = services['sale_service']
         self.product_service = services['product_service']
-        
+
     def build(self):
         return ft.Container(
             expand=True,
             content=ft.Column([
+                ft.Text(
+                    "Dashboard",
+                    size=24,
+                    weight=ft.FontWeight.BOLD
+                ),
                 self._build_stats_section(),
                 self._build_charts_section(),
                 self._build_sales_table()
             ],
-            scroll=ft.ScrollMode.AUTO,
-            spacing=20),
+                scroll=ft.ScrollMode.AUTO,
+                spacing=20),
             padding=20
         )
 

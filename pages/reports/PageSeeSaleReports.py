@@ -15,11 +15,11 @@ class SeeSalesView(ft.View):
         self.session = session
         self.sale_service = SaleService(session)
 
-        #!Calendario
+        #Calendar
         self.date_from = datetime.now().strftime('2024-01-01')
         self.date_to1 = datetime.now().strftime('%Y-%m-%d')
 
-        #!Table Sales
+        #Table Sales
         self.all_sales = 0
         self.current_page = 1
         self.sale_per_page = 10
@@ -55,12 +55,15 @@ class SeeSalesView(ft.View):
             # Tabla de ventas
             self.sales_table = ft.DataTable(
                 columns=[
-                    ft.DataColumn(ft.Text("ID")),
-                    ft.DataColumn(ft.Text("Fecha")),
-                    ft.DataColumn(ft.Text("Cliente")),
-                    ft.DataColumn(ft.Text("Productos")),
-                    ft.DataColumn(ft.Text("Total")),
-                    ft.DataColumn(ft.Text("Estado"))
+                    ft.DataColumn(ft.Text("ID"), on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Fecha"), on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Cliente"), on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Productos"),
+                                  on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Total"), on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Forma de pago"),
+                                  on_sort=self.sort_sales),
+                    ft.DataColumn(ft.Text("Estado"), on_sort=self.sort_sales)
                 ],
                 rows=[]
             )
@@ -104,7 +107,7 @@ class SeeSalesView(ft.View):
             # Botón para filtrar ventas
             self.filter_button = ft.ElevatedButton(
                 "Filtrar ventas",
-                on_click=self.update_table
+                on_click=self.get_sales
             )
 
             # Paginacion
@@ -120,37 +123,37 @@ class SeeSalesView(ft.View):
             )
             self.page_info = ft.Text(f"Páginas: {self.current_page}")
 
+            content = ft.Column([
+                    self.header,
+                    ft.Row([
+                        self.boton_from,
+                        self.boton_to,
+                        self.search_field,
+                        self.filter_button
+                    ], spacing=30),
+                    ft.Divider(height=20),
+                    self.sales_table,
+                    ft.Row([
+                        self.prev_button,
+                        self.page_info,
+                        self.next_button
+                    ], alignment=ft.MainAxisAlignment.CENTER)
+                ], spacing=20)
+
             # Layout principal
             self.controls = [
-                ft.Container(
-                    content=ft.Row([
-                        self.navigation_rail,
-                        ft.Container(
-                            padding=20,
-                            content=ft.Column([
-                                self.header,
-                                ft.Row([
-                                    self.boton_from,
-                                    self.boton_to,
-                                    self.search_field,
-                                    self.filter_button
-                                ], spacing=10),
-                                self.sales_table,
-                                ft.Row([
-                                    self.prev_button,
-                                    self.page_info,
-                                    self.next_button
-                                ], alignment=ft.MainAxisAlignment.CENTER)
-                            ], spacing=20),
-                            expand=True
-                        )
-                    ]),
-                    expand=True
-                )
+                ft.Row([
+                    self.navigation_rail,
+                    ft.Container(
+                        content=content,
+                        expand=True,
+                        padding=20
+                    )
+                ], expand=True)
             ]
 
             self.page.add(self)
-            self.update_table()
+            self.get_sales()
 
         except Exception as e:
             show_error_message(self.page, f"Error construyendo UI: {str(e)}")
@@ -167,43 +170,41 @@ class SeeSalesView(ft.View):
             self.current_page += 1
             self.update_table()
 
-        def sort_sales(self,e):
-            column = e.column_index
-            if self.sort_column == column:
-              self.sort_reverse = not self.sort_reverse
-            else:
-                self.sort_column = column
-                self.sort_reverse = False
+    def sort_sales(self, e):
+        column = e.column_index
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
 
-# def sort_suppliers(self, e):
-#         """Ordenar proveedores según la columna clicada"""
-#         column = e.column_index
-#         if self.sort_column == column:
-#             self.sort_reverse = not self.sort_reverse
-#         else:
-#             self.sort_column = column
-#             self.sort_reverse = False
+        if column == 0:
+            self.all_sales.sort(key=lambda s: s.id, reverse=self.sort_reverse)
+        elif column == 1:
+            self.all_sales.sort(key=lambda s: s.date,
+                                reverse=self.sort_reverse)
+        elif column == 2:
+            self.all_sales.sort(key=lambda s: s.customer.name,
+                                reverse=self.sort_reverse)
+        elif column == 3:
+            self.all_sales.sort(key=lambda s: s.id, reverse=self.sort_reverse)
+        elif column == 4:
+            self.all_sales.sort(key=lambda s: s.total_amount,
+                                reverse=self.sort_reverse)
+        elif column == 5:
+            self.all_sales.sort(key=lambda s: s.payment_method,
+                                reverse=self.sort_reverse)
+        elif column == 6:
+            self.all_sales.sort(key=lambda s: s.status,
+                                reverse=self.sort_reverse)
 
-#         if column == 0:  # ID
-#             self.all_suppliers.sort(
-#                 key=lambda s: s.id, reverse=self.sort_reverse)
-#         elif column == 1:  # Nombre
-#             self.all_suppliers.sort(
-#                 key=lambda s: s.name.lower(), reverse=self.sort_reverse)
-#         elif column == 2:  # Email
-#             self.all_suppliers.sort(
-#                 key=lambda s: s.email.lower(), reverse=self.sort_reverse)
-#         elif column == 3:  # Teléfono
-#             self.all_suppliers.sort(
-#                 key=lambda s: s.phone, reverse=self.sort_reverse)
-#         elif column == 4:  # Dirección
-#             self.all_suppliers.sort(
-#                 key=lambda s: s.address.lower(), reverse=self.sort_reverse)
+        self.update_table()
 
-    def update_table(self, e=None):
-        # Obtengo la lista de ventas
+    def get_sales(self, e=None):
         self.all_sales = self.filter_sales()
+        self.update_table()
 
+    def update_table(self):
         # Obtengo los datos para la paginación
         start = (self.current_page - 1) * self.sale_per_page
         end = start + self.sale_per_page
@@ -247,6 +248,7 @@ class SeeSalesView(ft.View):
                 ft.DataCell(
                     ft.Text(", ".join([item.product.name for item in sale.items]))),
                 ft.DataCell(ft.Text(f"${sale.total_amount:.2f}")),
+                ft.DataCell(ft.Text(f"{sale.payment_method}")),
                 ft.DataCell(ft.Text(sale.status))
             ])
         )

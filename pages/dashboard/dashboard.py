@@ -108,6 +108,11 @@ class DashboardView(ft.View):
             )
 
             return ft.Column([
+                ft.Text(
+                    "Dashboard",
+                    size=24,
+                    weight=ft.FontWeight.BOLD
+                ),
                 stats_row,
                 charts_container,
                 ft.Card(

@@ -45,26 +45,24 @@ class LoginView(ft.View):
         # Card container for login form
         login_card = ft.Card(
             content=ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text(
-                            "Iniciar sesión",
-                            size=24,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.colors.WHITE,
-                        ),
-                        self.username_field,
-                        self.password_field,
-                        self.login_button,
-                    ],
+                ft.Column([
+                    ft.Text(
+                        "Iniciar sesión",
+                        size=24,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.colors.WHITE,
+                    ),
+                    self.username_field,
+                    self.password_field,
+                    self.login_button,
+                ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    alignment=ft.MainAxisAlignment.CENTER,
                     spacing=15,
-                    alignment=ft.alignment.center,
                 ),
-                border_radius=ft.border_radius.all(12),
-                alignment=ft.alignment.center,
+                padding=10,
+                height=270
             ),
-            expand=True
         )
 
         # Full-page centered layout
@@ -79,7 +77,8 @@ class LoginView(ft.View):
     def handle_login(self, e):
         try:
             if not all([self.username_field.value, self.password_field.value]):
-                show_error_message(self.page, "Todos los campos son obligatorios")
+                show_error_message(
+                    self.page, "Todos los campos son obligatorios")
                 return
 
             user = self.auth_service.authenticate_user(
