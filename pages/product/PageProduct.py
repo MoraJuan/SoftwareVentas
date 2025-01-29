@@ -6,6 +6,7 @@ from services.productService import ProductService
 from ui.components.alerts import show_error_message, show_success_message
 from ui.components.navigation import create_navigation_rail, get_route_for_index
 
+
 class PageProduct(ft.View):
     def __init__(self, page: ft.Page, session: Session):
         super().__init__(route="/ver_productos", controls=[], padding=0)
@@ -23,7 +24,25 @@ class PageProduct(ft.View):
     def build_ui(self):
         try:
             # Inicializar controles
-            self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
+            self.navigation_rail = create_navigation_rail(
+                2, self.handle_navigation)
+
+            self.header = ft.Row(
+                [
+                    ft.IconButton(
+                        icon=ft.icons.ARROW_BACK,
+                        icon_color=ft.colors.BLUE,
+                        tooltip="Volver a Reportes",
+                        on_click=lambda _: self.page.go("/ver_reportes")
+                    ),
+                    ft.Text(
+                        "Inventario",
+                        size=24,
+                        weight=ft.FontWeight.BOLD
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.START
+            )
 
             # Campo de búsqueda
             self.search_field = ft.TextField(
@@ -60,9 +79,12 @@ class PageProduct(ft.View):
             self.product_table = ft.DataTable(
                 columns=[
                     ft.DataColumn(ft.Text("ID"), on_sort=self.sort_products),
-                    ft.DataColumn(ft.Text("Nombre"), on_sort=self.sort_products),
-                    ft.DataColumn(ft.Text("Precio"), on_sort=self.sort_products),
-                    ft.DataColumn(ft.Text("Stock"), on_sort=self.sort_products),
+                    ft.DataColumn(ft.Text("Nombre"),
+                                  on_sort=self.sort_products),
+                    ft.DataColumn(ft.Text("Precio"),
+                                  on_sort=self.sort_products),
+                    ft.DataColumn(ft.Text("Stock"),
+                                  on_sort=self.sort_products),
                     ft.DataColumn(ft.Text("Acciones")),
                 ],
                 rows=[]
@@ -78,7 +100,7 @@ class PageProduct(ft.View):
 
             # Diseño del contenido
             content = ft.Column([
-                ft.Text("Productos", size=20, weight=ft.FontWeight.BOLD),
+                self.header,
                 ft.Row([
                     self.search_field,
                     self.export_button
@@ -138,14 +160,17 @@ class PageProduct(ft.View):
             writer = csv.writer(output)
             writer.writerow(["ID", "Nombre", "Precio", "Stock"])
             for product in self.all_products:
-                writer.writerow([product.id, product.name, product.price, product.stock])
+                writer.writerow([product.id, product.name,
+                                product.price, product.stock])
             csv_data = output.getvalue()
             # Codificar datos CSV para URL
             csv_url = f"data:text/csv;charset=utf-8,{csv_data}"
             self.page.launch_url(csv_url)
-            show_success_message(self.page, "Productos exportados exitosamente.")
+            show_success_message(
+                self.page, "Productos exportados exitosamente.")
         except Exception as e:
-            show_error_message(self.page, f"Error al exportar productos: {str(e)}")
+            show_error_message(
+                self.page, f"Error al exportar productos: {str(e)}")
 
     def sort_products(self, e):
         """Ordenar productos según la columna clicada"""
@@ -157,13 +182,17 @@ class PageProduct(ft.View):
             self.sort_reverse = False
 
         if column == 0:  # ID
-            self.all_products.sort(key=lambda p: p.id, reverse=self.sort_reverse)
+            self.all_products.sort(
+                key=lambda p: p.id, reverse=self.sort_reverse)
         elif column == 1:  # Nombre
-            self.all_products.sort(key=lambda p: p.name.lower(), reverse=self.sort_reverse)
+            self.all_products.sort(
+                key=lambda p: p.name.lower(), reverse=self.sort_reverse)
         elif column == 2:  # Precio
-            self.all_products.sort(key=lambda p: p.price, reverse=self.sort_reverse)
+            self.all_products.sort(key=lambda p: p.price,
+                                   reverse=self.sort_reverse)
         elif column == 3:  # Stock
-            self.all_products.sort(key=lambda p: p.stock, reverse=self.sort_reverse)
+            self.all_products.sort(key=lambda p: p.stock,
+                                   reverse=self.sort_reverse)
 
         self.update_table(self.get_paginated_products())
 
@@ -175,7 +204,8 @@ class PageProduct(ft.View):
 
     def next_page(self, e):
         """Ir a la página siguiente"""
-        total_pages = (len(self.all_products) + self.products_per_page - 1) // self.products_per_page
+        total_pages = (len(self.all_products) +
+                       self.products_per_page - 1) // self.products_per_page
         if self.current_page < total_pages:
             self.current_page += 1
             self.update_pagination()
@@ -184,7 +214,8 @@ class PageProduct(ft.View):
         """Actualizar la tabla basada en la página actual"""
         paginated = self.get_paginated_products()
         self.update_table(paginated)
-        total_pages = (len(self.all_products) + self.products_per_page - 1) // self.products_per_page
+        total_pages = (len(self.all_products) +
+                       self.products_per_page - 1) // self.products_per_page
         self.page_info.value = f"Páginas: {self.current_page} de {total_pages}"
         self.page_info.update()
 
@@ -215,12 +246,14 @@ class PageProduct(ft.View):
                             ft.IconButton(
                                 icon=ft.icons.EDIT,
                                 tooltip="Editar",
-                                on_click=lambda e, p=product: self.edit_product(p)
+                                on_click=lambda e, p=product: self.edit_product(
+                                    p)
                             ),
                             ft.IconButton(
                                 icon=ft.icons.DELETE,
                                 tooltip="Eliminar",
-                                on_click=lambda e, p=product: self.delete_product(p)
+                                on_click=lambda e, p=product: self.delete_product(
+                                    p)
                             ),
                         ])
                     ),
@@ -234,14 +267,16 @@ class PageProduct(ft.View):
             self.page.client_storage.set("edit_product_id", product.id)
             self.page.go("/editar_producto")
         except Exception as e:
-            show_error_message(self.page, f"Error al editar el producto: {str(e)}")
+            show_error_message(
+                self.page, f"Error al editar el producto: {str(e)}")
 
     def delete_product(self, product):
         """Mostrar diálogo de confirmación antes de eliminar"""
         try:
             self.page.dialog = ft.AlertDialog(
                 title=ft.Text("Confirmar Eliminación"),
-                content=ft.Text(f"¿Está seguro que desea eliminar el producto {product.name}?"),
+                content=ft.Text(f"¿Está seguro que desea eliminar el producto {
+                                product.name}?"),
                 actions=[
                     ft.TextButton(
                         "Cancelar",
@@ -257,7 +292,8 @@ class PageProduct(ft.View):
             self.page.dialog.open = True
             self.page.update()
         except Exception as e:
-            show_error_message(self.page, f"Error al mostrar diálogo de confirmación: {str(e)}")
+            show_error_message(
+                self.page, f"Error al mostrar diálogo de confirmación: {str(e)}")
 
     def confirm_delete_product(self, product):
         """Eliminar el producto después de la confirmación"""
@@ -267,7 +303,8 @@ class PageProduct(ft.View):
             self.load_products()
             self.close_dialog()
         except Exception as e:
-            show_error_message(self.page, f"Error al eliminar el producto: {str(e)}")
+            show_error_message(
+                self.page, f"Error al eliminar el producto: {str(e)}")
 
     def close_dialog(self):
         """Cerrar el diálogo actualmente abierto"""
@@ -280,4 +317,5 @@ class PageProduct(ft.View):
             self.all_products = self.product_service.get_all_products()
             self.update_pagination()
         except Exception as e:
-            show_error_message(self.page, f"Error al cargar productos: {str(e)}")
+            show_error_message(
+                self.page, f"Error al cargar productos: {str(e)}")

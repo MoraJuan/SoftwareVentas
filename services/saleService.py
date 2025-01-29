@@ -1,11 +1,14 @@
 import logging
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models.Sale import Sale
+from models.Customer import Customer
 from models.SaleItem import SaleItem
 from models.Product import Product
 from .productService import ProductService
+
+
 
 class SaleService:
     def __init__(self, db: Session):
@@ -25,7 +28,7 @@ class SaleService:
                 total_amount=float(sale_data['total']),
                 status='pending'
             )
-            
+
             self.db.add(sale)
             self.db.flush()  # Get sale.id
 
@@ -46,7 +49,8 @@ class SaleService:
                 self.db.add(sale_item)
 
                 # Update product stock
-                product = self.product_service.get_product_by_id(item['product_id'])
+                product = self.product_service.get_product_by_id(
+                    item['product_id'])
                 if product:
                     product.stock -= quantity
 
@@ -58,16 +62,16 @@ class SaleService:
             self.db.rollback()
             logging.error(f"Error creating sale: {str(e)}")
             raise
-        
+
     def get_current_employee_id(self) -> int:
-            """Obtiene el ID del empleado actual. Implementa según tu lógica."""
-            # Ejemplo: obtener desde almacenamiento del cliente
-            # Esto necesita ser adaptado según cómo manejes la sesión del empleado
-            employee_id = ...  # Implementa la lógica para obtener el employee_id
-            if not employee_id:
-                raise ValueError("ID de empleado no encontrado.")
-            return employee_id
-    
+        """Obtiene el ID del empleado actual. Implementa según tu lógica."""
+        # Ejemplo: obtener desde almacenamiento del cliente
+        # Esto necesita ser adaptado según cómo manejes la sesión del empleado
+        employee_id = ...  # Implementa la lógica para obtener el employee_id
+        if not employee_id:
+            raise ValueError("ID de empleado no encontrado.")
+        return employee_id
+
     def get_sale_by_id(self, sale_id: int) -> Optional[Sale]:
         """Obtiene una venta por su ID"""
         return self.db.query(Sale).filter(Sale.id == sale_id).first()
@@ -83,7 +87,24 @@ class SaleService:
         """Calcula el total de ventas en un rango de fechas"""
         sales = self.get_sales_by_date_range(start_date, end_date)
         return sum(sale.total_amount for sale in sales)
-    
+
+    def get_sales_filtered(self, from_date: Optional[datetime] = None, to_date: Optional[datetime] = None, customer_name: Optional[str] = None) -> List[Sale]:
+        """Obtiene las ventas filtradas por rango de fechas y/o coincidencia parcial en el nombre del cliente."""
+        try:
+            query = self.db.query(Sale).join(Customer)  # Unir explícitamente con Customer
+
+            if from_date and to_date:
+                query = query.filter(Sale.date >= from_date, Sale.date <= to_date)
+
+            if customer_name:
+                query = query.filter(Customer.name.ilike(f"%{customer_name}%"))  # Búsqueda parcial
+
+            return query.options(joinedload(Sale.customer)).all()
+
+        except Exception as e:
+            logging.error(f"Error fetching filtered sales: {str(e)}")
+            return []
+
     def get_sales_between_dates(self, from_date: datetime, to_date: datetime) -> List[Sale]:
         """Obtiene las ventas entre dos fechas con información del cliente"""
         try:
@@ -92,7 +113,7 @@ class SaleService:
                 .filter(
                     Sale.date >= from_date,
                     Sale.date <= to_date
-                ).all()
+            ).all()
             return sales
         except Exception as e:
             logging.error(f"Error fetching sales: {str(e)}")

@@ -25,7 +25,7 @@ class PageCustomer(ft.View):
         try:
             # Inicializar controles
             self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
-            header = ft.Row(
+            self.header = ft.Row(
             [
                 ft.IconButton(
                     icon=ft.icons.ARROW_BACK,
@@ -34,7 +34,7 @@ class PageCustomer(ft.View):
                     on_click=lambda _: self.page.go("/ver_reportes")
                 ),
                 ft.Text(
-                    "Reporte de Ventas",
+                    "Clientes",
                     size=24,
                     weight=ft.FontWeight.BOLD
                 ),
@@ -95,8 +95,7 @@ class PageCustomer(ft.View):
 
             # Diseño del contenido
             content = ft.Column([
-                header,
-                ft.Text("Clientes", size=20, weight=ft.FontWeight.BOLD),
+                self.header,
                 ft.Row([
                     self.search_field,
                     self.export_button

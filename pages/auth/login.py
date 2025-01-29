@@ -59,21 +59,20 @@ class LoginView(ft.View):
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=15,
+                    alignment=ft.alignment.center,
                 ),
-                # padding=50,
                 border_radius=ft.border_radius.all(12),
-                bgcolor=ft.colors.BLACK54,
+                alignment=ft.alignment.center,
             ),
-            width=350,
-            #alignment=ft.alignment.center  # Fixed width for the card
+            expand=True
         )
 
         # Full-page centered layout
         self.controls = [
             ft.Container(
                 content=login_card,
-                alignment=ft.alignment.center,  # Centers horizontally and vertically
-                # expand=True,  # Ensures the container takes the full page
+                alignment=ft.alignment.center,
+                expand=True,
             )
         ]
 
