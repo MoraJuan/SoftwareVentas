@@ -32,6 +32,17 @@ def init_db():
     # Crear todas las tablas
     Base.metadata.create_all(bind=engine)
 
+    # Insertar "desconocido"
+    db = SessionLocal()
+    try:
+        unknown = db.query(Customer).filter_by(name="Desconocido").first()
+        if not unknown:
+            unknown = Customer(id=0, name="Desconocido", email="desconocido@example.com")
+            db.add(unknown)
+            db.commit()
+    finally:
+        db.close()
+
 def get_db():
     """Proporciona una sesión de base de datos"""
     db = SessionLocal()

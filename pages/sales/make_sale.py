@@ -21,10 +21,28 @@ class MakeSaleView(ft.View):
         self.navigation_rail = create_navigation_rail(
             1, self.handle_navigation)
 
-        self.customer_dropdown = ft.Dropdown(
+        self.customer_dropdown = ft.TextField(
             label="Cliente",
             width=300,
-            options=self.get_customer_options()
+            on_change=self.filter_customers
+        )
+        # ListView for showing filtered customers
+        self.customer_list = ft.ListView(
+            height=150,
+            width=300,
+            visible=False
+        )
+
+        self.selected_customer = None
+        self.selected_customer_text = ft.Text("")
+         # Customer search container
+        customer_search_container = ft.Container(
+            content=ft.Column([
+                self.customer_dropdown,
+                self.customer_list,
+                self.selected_customer_text
+            ], spacing=10),
+            padding=10
         )
 
         self.payment_method_dropdown = ft.Dropdown(
@@ -89,13 +107,12 @@ class MakeSaleView(ft.View):
                     ft.Container(
                         padding=20,
                         content=ft.Column([
-                            ft.Text("Realizar Venta", size=20,
-                                    weight=ft.FontWeight.BOLD),
-                            self.customer_dropdown,
+                            ft.Text("Realizar Venta", size=20, weight=ft.FontWeight.BOLD),
+                            customer_search_container,
                             self.payment_method_dropdown,
-                            ft.Row([
-                                self.search_name_input,
-                                self.search_category_input
+                                ft.Row([
+                                    self.search_name_input,
+                                    self.search_category_input
                             ]),
                             ft.Row([
                                 self.product_table,
@@ -117,6 +134,44 @@ class MakeSaleView(ft.View):
         return [ft.dropdown.Option(str(customer.id), customer.name) for customer in customers]
 
     """ Products table """
+    def filter_customers(self, e):
+        try:
+            search_term = self.customer_dropdown.value.lower()
+            if not search_term:
+                self.customer_list.visible = False
+                self.customer_list.update()
+                return
+
+            customers = self.customer_service.get_all_customers()
+            filtered = [c for c in customers if search_term in c.name.lower()]
+
+            self.customer_list.controls = [
+                ft.Container(
+                    content=ft.ListTile(
+                        title=ft.Text(f"{customer.name}"),
+                        subtitle=ft.Text(f"ID: {customer.id}"),
+                        on_click=lambda _, c=customer: self.select_customer(c)
+                    ),
+                    on_hover=lambda e: self.handle_hover(e),
+                ) for customer in filtered
+            ]
+            
+            self.customer_list.visible = True
+            self.customer_list.update()
+        except Exception as e:
+            show_error_message(self.page, f"Error al filtrar clientes: {str(e)}")
+    
+    def select_customer(self, customer):
+        self.selected_customer = customer
+        self.selected_customer_text.value = f"Cliente seleccionado: {customer.name}"
+        self.customer_dropdown.value = customer.name
+        self.customer_list.visible = False
+        self.update()
+
+    def handle_hover(self, e):
+        e.control.bgcolor = ft.colors.BLUE_GREY_100 if e.data == "true" else None
+        e.control.update()
+
 
     def get_initial_product_rows(self):
         products = self.product_service.get_all_products()
@@ -256,25 +311,28 @@ class MakeSaleView(ft.View):
     """ End sale """
 
     def finalize_sale(self, e):
+      
         try:
             if not self.cart:
                 show_error_message(self.page, "El carrito está vacío.")
                 return
+            
+            customer_id = self.customer_dropdown.value 
+            payment_method = self.payment_method_dropdown.value
 
-            customer_id = self.customer_dropdown.value
-            payment_method = self.payment_method_dropdown.value.lower()
+            # Asignar cliente desconocido si no se seleccionó
+            if not customer_id:
+                customer_id = 0
 
-            if not customer_id or not payment_method:
-                show_error_message(
-                    self.page, "Por favor seleccione un cliente y método de pago.")
+            # Validar método de pago
+            if not payment_method:
+                show_error_message(self.page, "Seleccione un método de pago.")
                 return
 
-            try:
-                customer_id = int(customer_id)
-            except ValueError:
-                show_error_message(self.page, "ID de cliente inválido")
-                return
+            # Convertir a minúsculas solo si existe
+            payment_method = payment_method.lower()
 
+           
             sale_data = {
                 "customer_id": customer_id,
                 "employee_id": 1,
@@ -288,7 +346,7 @@ class MakeSaleView(ft.View):
                 show_success_message(self.page, "Venta finalizada con éxito.")
                 self.cart.clear()
                 self.update_cart_table()
-                self.page.go("/ver_ventas")
+                self.page.go("/realizar_venta")
             else:
                 show_error_message(self.page, "Error al crear la venta")
 

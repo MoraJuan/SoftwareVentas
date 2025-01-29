@@ -23,25 +23,24 @@ class PageSupplier(ft.View):
 
     def build_ui(self):
         try:
-            # Barra de navegación lateral
-            self.navigation_rail = create_navigation_rail(
-                2, self.handle_navigation)
 
-            self.header = ft.Row(
-                [
-                    ft.IconButton(
-                        icon=ft.icons.ARROW_BACK,
-                        icon_color=ft.colors.BLUE,
-                        tooltip="Volver a Reportes",
-                        on_click=lambda _: self.page.go("/ver_reportes")
-                    ),
-                    ft.Text(
-                        "Proveedores ",
-                        size=24,
-                        weight=ft.FontWeight.BOLD
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.START
+            # Barra de navegación lateral
+            self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
+            header = ft.Row(
+            [
+                ft.IconButton(
+                    icon=ft.icons.ARROW_BACK,
+                    icon_color=ft.colors.BLUE,
+                    tooltip="Volver a Reportes",
+                    on_click=lambda _: self.page.go("/ver_reportes")
+                ),
+                ft.Text(
+                    "Reporte de Ventas",
+                    size=24,
+                    weight=ft.FontWeight.BOLD
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.START
             )
 
             # Campo de búsqueda
@@ -74,19 +73,16 @@ class PageSupplier(ft.View):
 
             # Barra de progreso
             self.progress_bar = ft.ProgressBar(visible=False)
-
+            
+           
             # Tabla de proveedores
             self.supplier_table = ft.DataTable(
                 columns=[
                     ft.DataColumn(ft.Text("ID"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Nombre"),
-                                  on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Email"),
-                                  on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Teléfono"),
-                                  on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Dirección"),
-                                  on_sort=self.sort_suppliers),
+                    ft.DataColumn(ft.Text("Nombre"), on_sort=self.sort_suppliers),
+                    ft.DataColumn(ft.Text("Email"), on_sort=self.sort_suppliers),
+                    ft.DataColumn(ft.Text("Teléfono"), on_sort=self.sort_suppliers),
+                    ft.DataColumn(ft.Text("Dirección"), on_sort=self.sort_suppliers),
                     ft.DataColumn(ft.Text("Acciones")),
                 ],
                 rows=[]
@@ -99,17 +95,18 @@ class PageSupplier(ft.View):
             )
 
             self.load_suppliers()
-
+           
             # Diseño del contenido
+            header,
             content = ft.Column([
-                self.header,
+                ft.Text("Proveedores", size=20, weight=ft.FontWeight.BOLD),
                 ft.Row([
                     self.search_field,
                     self.export_button
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 self.progress_bar,
                 self.add_button,
-                ft.Divider(height=20),
+                ft.Divider(height=20), 
                 self.supplier_table,
                 ft.Row([
                     self.prev_button,
@@ -159,17 +156,14 @@ class PageSupplier(ft.View):
             writer = csv.writer(output)
             writer.writerow(["ID", "Nombre", "Email", "Teléfono", "Dirección"])
             for supplier in self.all_suppliers:
-                writer.writerow(
-                    [supplier.id, supplier.name, supplier.email, supplier.phone, supplier.address])
+                writer.writerow([supplier.id, supplier.name, supplier.email, supplier.phone, supplier.address])
             csv_data = output.getvalue()
             # Codificar datos CSV para URL
             csv_url = f"data:text/csv;charset=utf-8,{csv_data}"
             self.page.launch_url(csv_url)
-            show_success_message(
-                self.page, "Proveedores exportados exitosamente.")
+            show_success_message(self.page, "Proveedores exportados exitosamente.")
         except Exception as e:
-            show_error_message(
-                self.page, f"Error al exportar proveedores: {str(e)}")
+            show_error_message(self.page, f"Error al exportar proveedores: {str(e)}")
 
     def sort_suppliers(self, e):
         """Ordenar proveedores según la columna clicada"""
@@ -181,20 +175,15 @@ class PageSupplier(ft.View):
             self.sort_reverse = False
 
         if column == 0:  # ID
-            self.all_suppliers.sort(
-                key=lambda s: s.id, reverse=self.sort_reverse)
+            self.all_suppliers.sort(key=lambda s: s.id, reverse=self.sort_reverse)
         elif column == 1:  # Nombre
-            self.all_suppliers.sort(
-                key=lambda s: s.name.lower(), reverse=self.sort_reverse)
+            self.all_suppliers.sort(key=lambda s: s.name.lower(), reverse=self.sort_reverse)
         elif column == 2:  # Email
-            self.all_suppliers.sort(
-                key=lambda s: s.email.lower(), reverse=self.sort_reverse)
+            self.all_suppliers.sort(key=lambda s: s.email.lower(), reverse=self.sort_reverse)
         elif column == 3:  # Teléfono
-            self.all_suppliers.sort(
-                key=lambda s: s.phone, reverse=self.sort_reverse)
+            self.all_suppliers.sort(key=lambda s: s.phone, reverse=self.sort_reverse)
         elif column == 4:  # Dirección
-            self.all_suppliers.sort(
-                key=lambda s: s.address.lower(), reverse=self.sort_reverse)
+            self.all_suppliers.sort(key=lambda s: s.address.lower(), reverse=self.sort_reverse)
 
         self.update_table(self.get_paginated_suppliers())
 
@@ -206,8 +195,7 @@ class PageSupplier(ft.View):
 
     def next_page(self, e):
         """Ir a la página siguiente"""
-        total_pages = (len(self.all_suppliers) +
-                       self.suppliers_per_page - 1) // self.suppliers_per_page
+        total_pages = (len(self.all_suppliers) + self.suppliers_per_page - 1) // self.suppliers_per_page
         if self.current_page < total_pages:
             self.current_page += 1
             self.update_pagination()
@@ -216,8 +204,7 @@ class PageSupplier(ft.View):
         """Actualizar la tabla basada en la página actual"""
         paginated = self.get_paginated_suppliers()
         self.update_table(paginated)
-        total_pages = (len(self.all_suppliers) +
-                       self.suppliers_per_page - 1) // self.suppliers_per_page
+        total_pages = (len(self.all_suppliers) + self.suppliers_per_page - 1) // self.suppliers_per_page
         self.page_info.value = f"Páginas: {self.current_page} de {total_pages}"
         self.page_info.update()
 
@@ -249,20 +236,17 @@ class PageSupplier(ft.View):
                             ft.IconButton(
                                 icon=ft.icons.VISIBILITY,
                                 tooltip="Ver Detalles",
-                                on_click=lambda e, s=supplier: self.view_supplier(
-                                    s)
+                                on_click=lambda e, s=supplier: self.view_supplier(s)
                             ),
                             ft.IconButton(
                                 icon=ft.icons.EDIT,
                                 tooltip="Editar",
-                                on_click=lambda e, s=supplier: self.edit_supplier(
-                                    s)
+                                on_click=lambda e, s=supplier: self.edit_supplier(s)
                             ),
                             ft.IconButton(
                                 icon=ft.icons.DELETE,
                                 tooltip="Eliminar",
-                                on_click=lambda e, s=supplier: self.delete_supplier(
-                                    s)
+                                on_click=lambda e, s=supplier: self.delete_supplier(s)
                             ),
                         ])
                     ),
@@ -293,27 +277,23 @@ class PageSupplier(ft.View):
             self.page.dialog.open = True
             self.page.update()
         except Exception as e:
-            show_error_message(
-                self.page, f"Error al ver detalles del proveedor: {str(e)}")
+            show_error_message(self.page, f"Error al ver detalles del proveedor: {str(e)}")
 
     def edit_supplier(self, supplier):
         """Navegar a la página de edición de proveedor"""
         try:
             self.page.go(f"/editar_proveedor/{supplier.id}")
         except Exception as e:
-            show_error_message(
-                self.page, f"Error al editar proveedor: {str(e)}")
+            show_error_message(self.page, f"Error al editar proveedor: {str(e)}")
 
     def delete_supplier(self, supplier):
         """Eliminar un proveedor"""
         try:
             self.supplier_service.delete_supplier(supplier.id)
-            show_success_message(self.page, f"Proveedor {
-                                 supplier.name} eliminado.")
+            show_success_message(self.page, f"Proveedor {supplier.name} eliminado.")
             self.load_suppliers()  # Recargar la lista
         except Exception as e:
-            show_error_message(
-                self.page, f"Error al eliminar proveedor: {str(e)}")
+            show_error_message(self.page, f"Error al eliminar proveedor: {str(e)}")
 
     def load_suppliers(self):
         """Cargar los proveedores desde el servicio"""
@@ -321,5 +301,4 @@ class PageSupplier(ft.View):
             self.all_suppliers = self.supplier_service.get_all_suppliers()
             self.update_pagination()
         except Exception as e:
-            show_error_message(
-                self.page, f"Error al cargar proveedores: {str(e)}")
+            show_error_message(self.page, f"Error al cargar proveedores: {str(e)}")
