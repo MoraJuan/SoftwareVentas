@@ -180,3 +180,46 @@ class SaleService:
         except Exception as e:
             logging.error(f"Error al buscar ventas por cliente: {str(e)}")
             return []
+
+    def filter_sales(self, date_from: str = None, date_to: str = None, customer_name: str = None) -> List[Sale]:
+        """
+        Filtra las ventas según los criterios proporcionados.
+        Este método es llamado desde la interfaz de usuario.
+        """
+        try:
+            # Convertir strings de fecha a objetos datetime si están presentes
+            from_date = None
+            to_date = None
+            
+            if date_from and date_from.strip():
+                try:
+                    from_date = datetime.strptime(date_from, "%Y-%m-%d")
+                except ValueError:
+                    logging.warning(f"Formato de fecha inválido para date_from: {date_from}")
+            
+            if date_to and date_to.strip():
+                try:
+                    # Añadir 23:59:59 para incluir todo el día
+                    to_date = datetime.strptime(date_to, "%Y-%m-%d")
+                    to_date = to_date.replace(hour=23, minute=59, second=59)
+                except ValueError:
+                    logging.warning(f"Formato de fecha inválido para date_to: {date_to}")
+            
+            # Usar el método existente para filtrar
+            return self.get_sales_filtered(from_date, to_date, customer_name)
+            
+        except Exception as e:
+            logging.error(f"Error en filter_sales: {str(e)}")
+            return []
+            
+    def get_sale_items(self, sale_id: int) -> List[SaleItem]:
+        """Obtiene los items de una venta específica"""
+        try:
+            return self.db.query(SaleItem).filter(
+                SaleItem.sale_id == sale_id
+            ).options(
+                joinedload(SaleItem.product)
+            ).all()
+        except Exception as e:
+            logging.error(f"Error al obtener items de venta: {str(e)}")
+            return []

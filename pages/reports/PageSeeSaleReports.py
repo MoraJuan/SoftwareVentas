@@ -4,8 +4,13 @@ import datetime
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from services.saleService import SaleService
-from ui.components.alerts import show_error_message
+from ui.components.alerts import show_error_message, show_success_message
 from ui.components.navigation import create_navigation_rail, get_route_for_index
+from io import StringIO
+import csv
+import pandas as pd
+import os
+import subprocess
 
 
 class SeeSalesView(ft.View):
@@ -30,7 +35,7 @@ class SeeSalesView(ft.View):
     def build_ui(self):
         try:
             self.navigation_rail = create_navigation_rail(
-                2, self.handle_navigation)
+                3, self.handle_navigation)
 
             self.customer = None
 
@@ -47,6 +52,16 @@ class SeeSalesView(ft.View):
                         "Reporte de Ventas",
                         size=24,
                         weight=ft.FontWeight.BOLD
+                    ),
+                    ft.Container(expand=True),
+                    ft.ElevatedButton(
+                        "Exportar a Excel",
+                        icon=ft.icons.DOWNLOAD,
+                        on_click=self.export_to_excel,
+                        style=ft.ButtonStyle(
+                            color=ft.colors.WHITE,
+                            bgcolor=ft.colors.GREEN
+                        )
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.START
@@ -275,5 +290,45 @@ class SeeSalesView(ft.View):
         try:
             route = get_route_for_index(e.control.selected_index)
             self.page.go(route)
+            self.page.update()
         except Exception as e:
             show_error_message(self.page, f"Error de navegación: {str(e)}")
+
+    def export_to_excel(self, e):
+        """Exportar la lista de ventas a un archivo Excel"""
+        try:
+            # Obtener ventas filtradas
+            sales = self.filter_sales()
+            
+            # Crear DataFrame con pandas
+            data = []
+            for sale in sales:
+                data.append({
+                    "ID": sale.id,
+                    "Fecha": sale.date.strftime("%Y-%m-%d %H:%M"),
+                    "Cliente": sale.customer.name if sale.customer else "Cliente no registrado",
+                    "Productos": ", ".join([item.product.name for item in sale.items]),
+                    "Total": f"{sale.total_amount:.2f}",
+                    "Método de Pago": sale.payment_method,
+                    "Estado": sale.status
+                })
+            
+            # Crear DataFrame
+            df = pd.DataFrame(data)
+            
+            # Crear archivo Excel temporal
+            temp_file = "temp_ventas.xlsx"
+            df.to_excel(temp_file, index=False)
+            
+            # Mostrar mensaje de éxito
+            show_success_message(self.page, f"Ventas exportadas exitosamente a {temp_file}")
+            
+            # Abrir el archivo con la aplicación predeterminada
+            if os.name == 'nt':  # Windows
+                os.startfile(temp_file)
+            elif os.name == 'posix':  # macOS y Linux
+                subprocess.call(('xdg-open', temp_file))
+                
+        except Exception as e:
+            logging.error(f"Error al exportar ventas: {str(e)}")
+            show_error_message(self.page, f"Error al exportar ventas: {str(e)}")

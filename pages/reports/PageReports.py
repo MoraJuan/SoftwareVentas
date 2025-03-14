@@ -90,7 +90,7 @@ class PageReports(ft.View):
                     "Clientes",
                     "Análisis de clientes y compras",
                     ft.icons.PEOPLE,
-                    "/ver_reportes/clientes"
+                    "/ver_compradores"
                 ),
             ])
             
