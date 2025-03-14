@@ -265,6 +265,7 @@ class PageSupplier(ft.View):
                     ft.Text(f"Email: {supplier.email}"),
                     ft.Text(f"Teléfono: {supplier.phone}"),
                     ft.Text(f"Dirección: {supplier.address}"),
+                    ft.Text(f"Descripción: {supplier.description or 'No disponible'}"),
                 ]),
                 actions=[
                     ft.TextButton(

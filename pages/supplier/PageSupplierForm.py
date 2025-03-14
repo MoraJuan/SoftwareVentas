@@ -27,6 +27,8 @@ class PageSupplierForm(ft.View):
             label="Teléfono", width=300)
         self.address_field = ft.TextField(
             label="Dirección", width=300)
+        self.description_field = ft.TextField(
+            label="Descripción", width=300, multiline=True, min_lines=3, max_lines=5)
 
         self.cancel_button = ft.ElevatedButton(
             text="Cancelar",
@@ -58,6 +60,7 @@ class PageSupplierForm(ft.View):
                     self.email_field,
                     self.phone_field,
                     self.address_field,
+                    self.description_field,
                     ft.Row([
                         self.cancel_button,
                         self.save_button
@@ -80,6 +83,7 @@ class PageSupplierForm(ft.View):
                     self.email_field.value = supplier.email
                     self.phone_field.value = supplier.phone
                     self.address_field.value = supplier.address
+                    self.description_field.value = supplier.description or ""
                     self.update()  # Actualiza la vista después de cargar los datos
         except Exception as e:
             show_error_message(
@@ -91,11 +95,12 @@ class PageSupplierForm(ft.View):
                 email = self.email_field.value.strip()
                 phone = self.phone_field.value.strip()
                 address = self.address_field.value.strip()
+                description = self.description_field.value.strip()
 
                 # Validaciones
                 if not all([name, email, phone, address]):
                     show_error_message(
-                        self.page, "Por favor complete todos los campos")
+                        self.page, "Por favor complete todos los campos obligatorios")
                     return
 
                 if not self.validate_email(email):
@@ -112,7 +117,8 @@ class PageSupplierForm(ft.View):
                     "name": name,
                     "email": email,
                     "phone": phone,
-                    "address": address
+                    "address": address,
+                    "description": description
                 }
 
                 if self.edit_mode:

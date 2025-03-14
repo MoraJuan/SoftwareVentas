@@ -15,7 +15,7 @@ class IncomeExpenseChart(ft.UserControl):
         
     def build(self):
         # Crear controles
-        self.title = ft.Text("Ingresos vs Gastos", size=18, weight=ft.FontWeight.BOLD)
+        self.title = ft.Text("Ingresos vs Gastos", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE)
         
         # Selector de período
         self.period_dropdown = ft.Dropdown(
@@ -44,7 +44,7 @@ class IncomeExpenseChart(ft.UserControl):
                     ft.Container(expand=True),
                     self.period_dropdown
                 ]),
-                ft.Divider(),
+                ft.Divider(color=ft.colors.OUTLINE_VARIANT),
                 self.chart_container
             ], spacing=10),
             padding=20,

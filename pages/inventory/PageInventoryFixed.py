@@ -217,7 +217,7 @@ class PageInventory(ft.View):
         except Exception as e:
             logging.error(f"Error construyendo UI: {str(e)}")
             show_error_message(self.page, f"Error construyendo UI: {str(e)}")
-
+            
     def filter_products(self, e):
         """Filtra los productos según el texto de búsqueda"""
         try:
@@ -563,7 +563,7 @@ class PageInventory(ft.View):
     def close_dialog(self, e=None):
         """Cierra el diálogo actual"""
         self.page.dialog.open = False
-        self.page.update() 
+        self.page.update()
         
     def get_total_pages(self):
         """Calcula el número total de páginas"""

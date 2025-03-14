@@ -20,7 +20,7 @@ class FinancialBalanceCard(ft.UserControl):
         
     def build(self):
         # Crear controles
-        self.title = ft.Text("Balance Financiero", size=18, weight=ft.FontWeight.BOLD)
+        self.title = ft.Text("Balance Financiero", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE)
         
         # Selector de período
         self.period_dropdown = ft.Dropdown(
@@ -37,13 +37,13 @@ class FinancialBalanceCard(ft.UserControl):
             on_change=self.update_balance
         )
         
-        # Indicadores financieros
-        self.income_text = ft.Text("Ingresos: $0.00", size=16, color=ft.colors.GREEN)
-        self.expense_text = ft.Text("Gastos: $0.00", size=16, color=ft.colors.RED)
-        self.balance_text = ft.Text("Balance: $0.00", size=18, weight=ft.FontWeight.BOLD)
+        # Indicadores financieros - Usar colores que contrasten bien en ambos temas
+        self.income_text = ft.Text("Ingresos: $0.00", size=16, color=ft.colors.GREEN_ACCENT)
+        self.expense_text = ft.Text("Gastos: $0.00", size=16, color=ft.colors.RED_ACCENT)
+        self.balance_text = ft.Text("Balance: $0.00", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE)
         
         # Gráfico de distribución de gastos
-        self.expense_distribution = ft.Text("Distribución de gastos:", size=16, weight=ft.FontWeight.BOLD)
+        self.expense_distribution = ft.Text("Distribución de gastos:", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE)
         self.expense_categories = ft.Column(spacing=5)
         
         # Actualizar datos iniciales

@@ -39,12 +39,12 @@ class StatsCard(ft.UserControl):
                             formatted_value, 
                             size=20, 
                             weight=ft.FontWeight.BOLD,
-                            color=ft.colors.GREY_900
+                            color=ft.colors.ON_SURFACE
                         ),
                         ft.Text(
                             self.title, 
                             size=13,
-                            color=ft.colors.GREY_700
+                            color=ft.colors.ON_SURFACE_VARIANT
                         )
                     ], 
                     spacing=2,
@@ -59,5 +59,5 @@ class StatsCard(ft.UserControl):
             border_radius=8,
             width=220,
             height=80,
-            bgcolor=ft.colors.with_opacity(0.03, ft.colors.BLACK)
+            bgcolor=ft.colors.with_opacity(0.03, ft.colors.SURFACE_VARIANT)
         )

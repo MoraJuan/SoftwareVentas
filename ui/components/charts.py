@@ -11,11 +11,11 @@ class LineChart(ft.UserControl):
         # Por ahora, mostraremos un placeholder
         return ft.Container(
             content=ft.Column([
-                ft.Text(self.title, size=16, weight=ft.FontWeight.BOLD),
-                ft.Text("Gráfico de líneas aquí")
+                ft.Text(self.title, size=16, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
+                ft.Text("Gráfico de líneas aquí", color=ft.colors.ON_SURFACE_VARIANT)
             ]),
             padding=10,
-            border=ft.border.all(1, ft.colors.GREY_400),
+            border=ft.border.all(1, ft.colors.OUTLINE),
             border_radius=10
         )
 
@@ -29,10 +29,10 @@ class PieChart(ft.UserControl):
         # Por ahora, mostraremos un placeholder
         return ft.Container(
             content=ft.Column([
-                ft.Text(self.title, size=16, weight=ft.FontWeight.BOLD),
-                ft.Text("Gráfico circular aquí")
+                ft.Text(self.title, size=16, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
+                ft.Text("Gráfico circular aquí", color=ft.colors.ON_SURFACE_VARIANT)
             ]),
             padding=10,
-            border=ft.border.all(1, ft.colors.GREY_400),
+            border=ft.border.all(1, ft.colors.OUTLINE),
             border_radius=10
         )

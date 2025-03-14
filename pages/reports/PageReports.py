@@ -84,13 +84,13 @@ class PageReports(ft.View):
                     "Inventario",
                     "Estado y movimientos del inventario",
                     ft.icons.INVENTORY_2,
-                    "/ver_reportes/inventario"
+                    "/ver_inventario"
                 ),
                 self.create_report_card(
                     "Clientes",
                     "Análisis de clientes y compras",
                     ft.icons.PEOPLE,
-                    "/ver_reportes/clientes"
+                    "/ver_compradores"
                 ),
             ])
             
