@@ -9,7 +9,7 @@ load_dotenv()
 Base = declarative_base()
 
 # Crear el motor de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas.db")
 engine = create_engine(DATABASE_URL, echo=True)
 
 # Configurar la sesión
@@ -37,7 +37,13 @@ def init_db():
     try:
         unknown = db.query(Customer).filter_by(name="Desconocido").first()
         if not unknown:
-            unknown = Customer(id=0, name="Desconocido", email="desconocido@example.com")
+            unknown = Customer(
+                id=0,
+                name="Desconocido",
+                email="desconocido@example.com",
+                phone="000-0000",
+                address="Sin dirección"
+            )
             db.add(unknown)
             db.commit()
     finally:

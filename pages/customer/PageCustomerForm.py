@@ -27,6 +27,14 @@ class PageCustomerForm(ft.View):
             label="Email",
             width=300
         )
+        self.phone_field = ft.TextField(
+            label="Teléfono",
+            width=300
+        )
+        self.address_field = ft.TextField(
+            label="Dirección",
+            width=300
+        )
 
         self.cancel_button = ft.ElevatedButton(
             text="Cancelar",
@@ -60,6 +68,8 @@ class PageCustomerForm(ft.View):
                     content=ft.Column([
                         self.name_field,
                         self.email_field,
+                        self.phone_field,
+                        self.address_field,
                         ft.Row([
                             self.cancel_button,
                             self.save_button
@@ -81,6 +91,8 @@ class PageCustomerForm(ft.View):
                 if customer:
                     self.name_field.value = customer.name
                     self.email_field.value = customer.email
+                    self.phone_field.value = customer.phone
+                    self.address_field.value = customer.address
                     self.update()
         except Exception as e:
             show_error_message(
@@ -88,13 +100,15 @@ class PageCustomerForm(ft.View):
 
     def save_customer(self, e):
         try:
-            if not all([self.name_field.value, self.email_field.value]):
+            if not all([self.name_field.value, self.email_field.value, self.phone_field.value, self.address_field.value]):
                 show_error_message(self.page, "Por favor complete todos los campos")
                 return
 
             customer_data = {
                 "name": self.name_field.value,
-                "email": self.email_field.value
+                "email": self.email_field.value,
+                "phone": self.phone_field.value,
+                "address": self.address_field.value
             }
 
             if self.edit_mode:

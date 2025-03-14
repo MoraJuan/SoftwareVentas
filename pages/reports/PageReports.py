@@ -80,12 +80,12 @@ class PageReports(ft.View):
                     ft.icons.MONEY_OFF,
                     "/ver_reportes/gastos"
                 ),
-                self.create_report_card(
-                    "Inventario",
-                    "Estado y movimientos del inventario",
-                    ft.icons.INVENTORY_2,
-                    "/ver_inventario"
-                ),
+                # self.create_report_card(
+                #     "Inventario",
+                #     "Estado y movimientos del inventario",
+                #     ft.icons.INVENTORY_2,
+                #     "/ver_inventario"
+                # ),
                 self.create_report_card(
                     "Clientes",
                     "Análisis de clientes y compras",

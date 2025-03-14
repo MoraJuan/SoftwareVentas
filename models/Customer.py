@@ -26,6 +26,8 @@ class Customer(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
+    address = Column(String, unique=True, nullable=False)
+    phone = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relaciones
