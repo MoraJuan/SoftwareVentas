@@ -9,6 +9,8 @@ from services.saleService import SaleService
 from services.productService import ProductService
 from ui.components.alerts import show_error_message, show_success_message
 from ui.components.navigation import create_navigation_rail, ThemeIconButton
+from io import StringIO
+import csv
 
 
 class ViewSalesView(ft.View):
@@ -58,6 +60,15 @@ class ViewSalesView(ft.View):
                         ),
                     ]),
                     ft.Container(expand=True),
+                    ft.ElevatedButton(
+                        "Exportar a CSV",
+                        icon=ft.icons.DOWNLOAD,
+                        on_click=self.export_to_csv,
+                        style=ft.ButtonStyle(
+                            color=ft.colors.WHITE,
+                            bgcolor=ft.colors.GREEN
+                        )
+                    ),
                     self.theme_button
                 ]),
                 padding=ft.padding.only(right=20, bottom=20)
@@ -164,6 +175,17 @@ class ViewSalesView(ft.View):
             on_click=self.reset_filters
         )
         
+        # Botón de exportar a CSV
+        export_button = ft.ElevatedButton(
+            "Exportar a CSV",
+            icon=ft.icons.DOWNLOAD,
+            on_click=self.export_to_csv,
+            style=ft.ButtonStyle(
+                color=ft.colors.WHITE,
+                bgcolor=ft.colors.GREEN
+            )
+        )
+        
         # Botones de período rápido
         today_button = ft.TextButton(
             "Hoy",
@@ -191,6 +213,7 @@ class ViewSalesView(ft.View):
                 ft.Row([
                     search_button,
                     reset_button,
+                    export_button,
                     ft.Container(width=20),
                     ft.Text("Períodos rápidos:", color=ft.colors.ON_SURFACE),
                     today_button,
@@ -422,4 +445,44 @@ class ViewSalesView(ft.View):
             
         except Exception as e:
             logging.error(f"Error al cerrar diálogo: {str(e)}")
-            show_error_message(self.page, f"Error al cerrar diálogo: {str(e)}") 
+            show_error_message(self.page, f"Error al cerrar diálogo: {str(e)}")
+    
+    def export_to_csv(self, e):
+        """Exportar la lista de ventas a un archivo CSV"""
+        try:
+            # Obtener ventas actuales (filtradas o todas)
+            sales = []
+            if self.date_from.value or self.date_to.value or self.customer_name.value:
+                # Si hay filtros aplicados, usar las ventas filtradas
+                sales = self.sale_service.filter_sales(
+                    self.date_from.value, 
+                    self.date_to.value, 
+                    self.customer_name.value
+                )
+            else:
+                # Si no hay filtros, usar todas las ventas
+                sales = self.sale_service.get_all_sales()
+            
+            # Crear archivo CSV
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["ID", "Fecha", "Cliente", "Total", "Método de Pago", "Estado"])
+            
+            for sale in sales:
+                writer.writerow([
+                    sale.id,
+                    sale.date.strftime("%Y-%m-%d %H:%M"),
+                    sale.customer_name or "Cliente no registrado",
+                    f"{sale.total_amount:.2f}",
+                    sale.payment_method if hasattr(sale, 'payment_method') else "N/A",
+                    sale.status if hasattr(sale, 'status') else "N/A"
+                ])
+            
+            csv_data = output.getvalue()
+            # Codificar datos CSV para URL
+            csv_url = f"data:text/csv;charset=utf-8,{csv_data}"
+            self.page.launch_url(csv_url)
+            show_success_message(self.page, "Ventas exportadas exitosamente.")
+        except Exception as e:
+            logging.error(f"Error al exportar ventas: {str(e)}")
+            show_error_message(self.page, f"Error al exportar ventas: {str(e)}") 
