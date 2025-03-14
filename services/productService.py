@@ -26,6 +26,17 @@ class ProductService:
         """Obtiene productos por rango de precio"""
         return self.db.query(Product).filter(Product.price >= min_price, Product.price <= max_price).all()
 
+    def search_products(self, search_term: str) -> List[Product]:
+        """Busca productos por nombre, descripción o categoría"""
+        if not search_term:
+            return self.get_all_products()
+        
+        return self.db.query(Product).filter(
+            (Product.name.ilike(f"%{search_term}%")) |
+            (Product.description.ilike(f"%{search_term}%")) |
+            (Product.category.ilike(f"%{search_term}%"))
+        ).all()
+
     def create_product(self, product_data: dict) -> Product:
         """Crea un nuevo producto"""
         product = Product(**product_data)

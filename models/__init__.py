@@ -6,3 +6,6 @@ from .Employee import Employee
 from .Product import Product
 from .Stock import Stock
 from .Supplier import Supplier
+from .Sale import Sale
+from .SaleItem import SaleItem
+from .Expense import Expense

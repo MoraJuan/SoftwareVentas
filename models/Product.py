@@ -8,6 +8,8 @@ class Product(Base):
     Atributos:
         id (int): Identificador único del producto
         name (str): Nombre del producto
+        description (str): Descripción del producto
+        category (str): Categoría del producto
         price (float): Precio del producto
         stock (int): Cantidad disponible en inventario
         
@@ -20,6 +22,8 @@ class Product(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String, nullable=True)
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False)
     

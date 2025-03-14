@@ -96,4 +96,4 @@ class PageProductForm(ft.View):
     def go_back(self, e):
         if self.edit_mode:
             self.page.client_storage.remove("edit_supplier_id")
-        self.page.go("/ver_productos")
+        self.page.go("/ver_inventario")

@@ -25,6 +25,8 @@ class CustomerService:
         self.db.commit()
         self.db.refresh(customer)
         return customer
+    
+    
 
     def update_customer(self, customer_id: int, customer_data: dict) -> Optional[Customer]:
         """Actualiza un cliente existente"""

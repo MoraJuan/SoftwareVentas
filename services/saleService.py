@@ -9,32 +9,57 @@ from models.Product import Product
 from .productService import ProductService
 
 
-
 class SaleService:
     def __init__(self, db: Session):
         self.db = db
         self.product_service = ProductService(db)
 
-    def get_all_sales(self) -> List[Product]:
-        return self.db.query(Sale).all()
+    def get_all_sales(self) -> List[Sale]:
+        """Obtiene todas las ventas con sus relaciones cargadas"""
+        return self.db.query(Sale).options(
+            joinedload(Sale.customer),
+            joinedload(Sale.items).joinedload(SaleItem.product)
+        ).all()
 
     def create_sale(self, sale_data: dict) -> Sale:
         try:
-            # Create sale
+            # Calcular el total de la venta
+            total_amount = 0
+            for item in sale_data['items']:
+                quantity = int(item['quantity'])
+                unit_price = float(item['price'])
+                total_amount += quantity * unit_price
+            
+            # Crear venta
             sale = Sale(
-                customer_id=int(sale_data['customer_id']),
-                employee_id=int(sale_data['employee_id']),
-                payment_method=str(sale_data['payment_method']),
-                total_amount=float(sale_data['total']),
-                status='pending'
+                date=datetime.now(),
+                total_amount=total_amount,
+                status='completed'
             )
+            
+            # Agregar información del cliente si está disponible
+            if sale_data.get('customer_id') and sale_data['customer_id'].strip():
+                sale.customer_id = int(sale_data['customer_id'])
+            else:
+                # Usar cliente "Desconocido" (ID 0) si no se proporciona
+                sale.customer_id = 0
+                
+            # Agregar información del empleado si está disponible
+            if sale_data.get('employee_id') and sale_data['employee_id'].strip():
+                sale.employee_id = int(sale_data['employee_id'])
+                
+            # Agregar método de pago si está disponible
+            if sale_data.get('payment_method'):
+                sale.payment_method = sale_data['payment_method']
+            else:
+                sale.payment_method = 'efectivo'  # Valor por defecto
 
             self.db.add(sale)
-            self.db.flush()  # Get sale.id
+            self.db.flush()  # Obtener sale.id
 
-            # Process items
+            # Procesar items
             for item in sale_data['items']:
-                # Calculate subtotal
+                # Calcular subtotal
                 quantity = int(item['quantity'])
                 unit_price = float(item['price'])
                 subtotal = quantity * unit_price
@@ -44,20 +69,24 @@ class SaleService:
                     product_id=int(item['product_id']),
                     quantity=quantity,
                     unit_price=unit_price,
-                    subtotal=subtotal  # Add subtotal
+                    subtotal=subtotal
                 )
+                
                 self.db.add(sale_item)
-
-                # Update product stock
-                product = self.product_service.get_product_by_id(
-                    item['product_id'])
+                
+                # Actualizar stock del producto
+                product = self.product_service.get_product_by_id(item['product_id'])
                 if product:
                     product.stock -= quantity
-
-            sale.status = 'completed'
+                    
+            # Confirmar cambios
             self.db.commit()
+            
+            # Recargar la venta con sus relaciones
+            self.db.refresh(sale)
+            
             return sale
-
+            
         except Exception as e:
             self.db.rollback()
             logging.error(f"Error creating sale: {str(e)}")
@@ -138,3 +167,16 @@ class SaleService:
         except Exception as e:
             self.db.rollback()
             raise e
+
+    def get_sales_by_customer_name(self, customer_name: str) -> List[Sale]:
+        """Obtiene las ventas filtradas por coincidencia parcial en el nombre del cliente."""
+        try:
+            query = self.db.query(Sale).join(Customer)
+            query = query.filter(Customer.name.ilike(f"%{customer_name}%"))
+            return query.options(
+                joinedload(Sale.customer),
+                joinedload(Sale.items).joinedload(SaleItem.product)
+            ).all()
+        except Exception as e:
+            logging.error(f"Error al buscar ventas por cliente: {str(e)}")
+            return []
