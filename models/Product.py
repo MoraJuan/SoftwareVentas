@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, CheckConstraint
+from sqlalchemy import Column, Integer, String, Float, CheckConstraint, Boolean, Date, Text
+from sqlalchemy.orm import relationship
 from database.connection import Base
 
 class Product(Base):
@@ -12,11 +13,6 @@ class Product(Base):
         category (str): Categoría del producto
         price (float): Precio del producto
         stock (int): Cantidad disponible en inventario
-        
-    Validaciones:
-        - El precio debe ser mayor a 0
-        - El stock debe ser mayor o igual a 0
-        - El nombre no puede estar vacío
     """
     __tablename__ = 'product'
     
@@ -27,6 +23,9 @@ class Product(Base):
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False)
     
+    # Relaciones
+    inventory_history = relationship('InventoryHistory', back_populates='product', cascade="all, delete-orphan", lazy="dynamic")
+    
     __table_args__ = (
         CheckConstraint('price > 0', name='check_price_positive'),
         CheckConstraint('stock >= 0', name='check_stock_non_negative'),
@@ -34,3 +33,8 @@ class Product(Base):
     
     def __repr__(self):
         return f"Producto({self.name}, stock={self.stock}, price={self.price}, id={self.id})"
+        
+    @property
+    def is_low_stock(self):
+        """Verifica si el producto tiene stock bajo"""
+        return self.stock <= 5  # Valor predeterminado para stock mínimo

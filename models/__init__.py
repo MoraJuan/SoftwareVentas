@@ -9,3 +9,4 @@ from .Supplier import Supplier
 from .Sale import Sale
 from .SaleItem import SaleItem
 from .Expense import Expense
+from .InventoryHistory import InventoryHistory

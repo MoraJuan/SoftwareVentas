@@ -13,6 +13,8 @@ from pages.expenses.PageExpense import PageExpense
 from pages.sales.PageSales import PageSales
 from pages.sales.make_sale import MakeSaleView
 from pages.inventory.PageInventory import PageInventory
+from pages.inventory.InventoryManagementPage import InventoryManagementPage
+from pages.inventory.InventoryHistoryPage import InventoryHistoryPage
 from pages.product.PageProductForm import PageProductForm
 from pages.product.PageProduct import PageProduct
 from pages.supplier.PageSupplierForm import PageSupplierForm
@@ -132,6 +134,12 @@ def main(page: ft.Page):
                 elif page.route == "/ver_inventario":
                     logger.info("Cargando vista de inventario")
                     page.views.append(PageInventory(page, session))
+                elif page.route == "/gestionar_inventario":
+                    logger.info("Cargando vista de gestión de inventario")
+                    page.views.append(InventoryManagementPage(page, session))
+                elif page.route == "/historial_inventario":
+                    logger.info("Cargando vista de historial de inventario")
+                    page.views.append(InventoryHistoryPage(page, session))
                 elif page.route == "/agregar_producto":
                     logger.info("Cargando vista de agregar producto")
                     page.views.append(PageProductForm(page, session))
@@ -143,9 +151,8 @@ def main(page: ft.Page):
                     page.go("/ver_inventario")
                     return
                 elif page.route == "/ajustar_stock":
-                    logger.info("Cargando vista de ajustar stock")
-                    # Redirigir a la vista de inventario
-                    page.go("/ver_inventario")
+                    logger.info("Redirigiendo a vista de gestión de inventario")
+                    page.go("/gestionar_inventario")
                     return
                 elif page.route == "/ver_proveedores":
                     logger.info("Cargando vista de proveedores")

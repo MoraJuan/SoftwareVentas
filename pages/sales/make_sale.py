@@ -51,7 +51,7 @@ class MakeSaleView(ft.View):
                 padding=ft.padding.only(right=20, bottom=20)
             )
 
-            # Crear secciones de la venta
+            # Crear secciones de la interfaz
             self.search_section = self.build_search_section()
             self.products_section = self.build_products_section()
             self.cart_section = self.build_cart_section()
@@ -63,7 +63,7 @@ class MakeSaleView(ft.View):
                 header,
                 ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
                 ft.Container(
-            content=ft.Column([
+                    content=ft.Column([
                         ft.Text(
                             "Buscar Productos", 
                             size=18, 
@@ -85,7 +85,7 @@ class MakeSaleView(ft.View):
                             self.customer_section,
                             self.payment_section
                         ], spacing=20)
-            ], spacing=10),
+                    ], spacing=10),
                     padding=20
                 )
             ], spacing=0, scroll=ft.ScrollMode.AUTO)
@@ -105,6 +105,20 @@ class MakeSaleView(ft.View):
                     expand=True
                 )
             ]
+            
+            # Verificar si hay un producto seleccionado en el almacenamiento del cliente
+            selected_product_id = self.page.client_storage.get("selected_product_id")
+            if selected_product_id is not None:
+                try:
+                    # Obtener el producto seleccionado
+                    product = self.product_service.get_product_by_id(selected_product_id)
+                    if product and product.stock > 0:
+                        # Añadir el producto al carrito
+                        self.add_to_cart(product)
+                    # Limpiar el producto seleccionado del almacenamiento
+                    self.page.client_storage.remove("selected_product_id")
+                except Exception as e:
+                    logging.error(f"Error al cargar producto seleccionado: {str(e)}")
 
         except Exception as e:
             logging.error(f"Error construyendo UI: {str(e)}")
@@ -287,7 +301,8 @@ class MakeSaleView(ft.View):
                 # Verificar si hay stock
                 stock_color = ft.colors.ERROR if product.stock <= 0 else ft.colors.ON_SURFACE
                 
-                # Crear fila
+                # Crear fila con ID del producto para evitar problemas de referencia
+                product_id = product.id
                 row = ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(str(product.id), color=ft.colors.ON_SURFACE)),
@@ -302,7 +317,7 @@ class MakeSaleView(ft.View):
                                     icon_color=ft.colors.PRIMARY,
                                     tooltip="Agregar al carrito",
                                     disabled=product.stock <= 0,
-                                    on_click=lambda _, p=product: self.add_to_cart(p)
+                                    on_click=self.create_add_to_cart_callback(product_id)
                                 )
                             ])
                         ),
@@ -323,6 +338,20 @@ class MakeSaleView(ft.View):
             logging.error(f"Error al buscar productos: {str(e)}")
             show_error_message(self.page, f"Error al buscar productos: {str(e)}")
     
+    def create_add_to_cart_callback(self, product_id):
+        """Crea una función de callback para agregar al carrito"""
+        def handle_click(e):
+            try:
+                product = self.product_service.get_product_by_id(product_id)
+                if product:
+                    self.add_to_cart(product)
+                else:
+                    show_error_message(self.page, f"No se pudo encontrar el producto con ID {product_id}")
+            except Exception as ex:
+                logging.error(f"Error en callback de agregar al carrito: {str(ex)}")
+                show_error_message(self.page, f"Error al agregar al carrito: {str(ex)}")
+        return handle_click
+    
     def add_to_cart(self, product):
         try:
             # Verificar si el producto ya está en el carrito
@@ -336,6 +365,7 @@ class MakeSaleView(ft.View):
                     # Incrementar cantidad
                     item["quantity"] += 1
                     self.update_cart()
+                    show_success_message(self.page, f"Se aumentó la cantidad de {product.name}")
                     return
             
             # Agregar nuevo producto al carrito
@@ -346,6 +376,7 @@ class MakeSaleView(ft.View):
             
             # Actualizar carrito
             self.update_cart()
+            show_success_message(self.page, f"Se agregó {product.name} al carrito")
             
         except Exception as e:
             logging.error(f"Error al agregar al carrito: {str(e)}")
@@ -363,7 +394,8 @@ class MakeSaleView(ft.View):
                 subtotal = product.price * quantity
                 total += subtotal
                 
-                # Crear fila
+                # Crear fila con ID del producto para evitar problemas de referencia
+                product_id = product.id
                 row = ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(product.name, color=ft.colors.ON_SURFACE)),
@@ -374,14 +406,14 @@ class MakeSaleView(ft.View):
                                     icon=ft.icons.REMOVE,
                                     icon_color=ft.colors.ON_SURFACE_VARIANT,
                                     tooltip="Disminuir",
-                                    on_click=lambda _, p=product: self.decrease_quantity(p)
+                                    on_click=self.create_decrease_callback(product_id)
                                 ),
                                 ft.Text(str(quantity), color=ft.colors.ON_SURFACE),
                                 ft.IconButton(
                                     icon=ft.icons.ADD,
                                     icon_color=ft.colors.ON_SURFACE_VARIANT,
                                     tooltip="Aumentar",
-                                    on_click=lambda _, p=product: self.increase_quantity(p)
+                                    on_click=self.create_increase_callback(product_id)
                                 ),
                             ])
                         ),
@@ -392,7 +424,7 @@ class MakeSaleView(ft.View):
                                     icon=ft.icons.DELETE,
                                     icon_color=ft.colors.ERROR,
                                     tooltip="Eliminar",
-                                    on_click=lambda _, p=product: self.remove_from_cart(p)
+                                    on_click=self.create_remove_callback(product_id)
                                 )
                             ])
                         ),
@@ -413,14 +445,58 @@ class MakeSaleView(ft.View):
             logging.error(f"Error al actualizar carrito: {str(e)}")
             show_error_message(self.page, f"Error al actualizar carrito: {str(e)}")
     
+    def create_decrease_callback(self, product_id):
+        """Crea una función de callback para disminuir cantidad"""
+        def handle_click(e):
+            try:
+                product = self.product_service.get_product_by_id(product_id)
+                if product:
+                    self.decrease_quantity(product)
+                else:
+                    show_error_message(self.page, f"No se pudo encontrar el producto con ID {product_id}")
+            except Exception as ex:
+                logging.error(f"Error en callback de disminuir cantidad: {str(ex)}")
+                show_error_message(self.page, f"Error al disminuir cantidad: {str(ex)}")
+        return handle_click
+    
+    def create_increase_callback(self, product_id):
+        """Crea una función de callback para aumentar cantidad"""
+        def handle_click(e):
+            try:
+                product = self.product_service.get_product_by_id(product_id)
+                if product:
+                    self.increase_quantity(product)
+                else:
+                    show_error_message(self.page, f"No se pudo encontrar el producto con ID {product_id}")
+            except Exception as ex:
+                logging.error(f"Error en callback de aumentar cantidad: {str(ex)}")
+                show_error_message(self.page, f"Error al aumentar cantidad: {str(ex)}")
+        return handle_click
+    
+    def create_remove_callback(self, product_id):
+        """Crea una función de callback para eliminar del carrito"""
+        def handle_click(e):
+            try:
+                product = self.product_service.get_product_by_id(product_id)
+                if product:
+                    self.remove_from_cart(product)
+                else:
+                    show_error_message(self.page, f"No se pudo encontrar el producto con ID {product_id}")
+            except Exception as ex:
+                logging.error(f"Error en callback de eliminar del carrito: {str(ex)}")
+                show_error_message(self.page, f"Error al eliminar del carrito: {str(ex)}")
+        return handle_click
+    
     def decrease_quantity(self, product):
         try:
             for item in self.cart:
                 if item["product"].id == product.id:
                     if item["quantity"] > 1:
                         item["quantity"] -= 1
+                        show_success_message(self.page, f"Se disminuyó la cantidad de {product.name}")
                     else:
                         self.cart.remove(item)
+                        show_success_message(self.page, f"Se eliminó {product.name} del carrito")
                     break
 
             self.update_cart()
@@ -439,6 +515,7 @@ class MakeSaleView(ft.View):
                         return
                     
                     item["quantity"] += 1
+                    show_success_message(self.page, f"Se aumentó la cantidad de {product.name}")
                     break
             
             self.update_cart()
@@ -452,6 +529,7 @@ class MakeSaleView(ft.View):
             for item in self.cart:
                 if item["product"].id == product.id:
                     self.cart.remove(item)
+                    show_success_message(self.page, f"Se eliminó {product.name} del carrito")
                     break
             
             self.update_cart()
@@ -469,9 +547,9 @@ class MakeSaleView(ft.View):
             
             # Preparar datos de la venta
             sale_data = {
-                "customer_name": self.customer_name.value,
                 "customer_id": self.customer_id.value,
-                "items": []
+                "items": [],
+                "payment_method": "efectivo"  # Valor por defecto
             }
             
             # Agregar items
@@ -496,6 +574,9 @@ class MakeSaleView(ft.View):
             self.customer_name.value = ""
             self.customer_id.value = ""
             self.update()
+            
+            # Redirigir a la página de ventas después de un breve retraso
+            self.page.go("/ver_ventas")
             
         except Exception as e:
             logging.error(f"Error al completar venta: {str(e)}")

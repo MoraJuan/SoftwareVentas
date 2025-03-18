@@ -148,6 +148,23 @@ class SaleService:
             logging.error(f"Error fetching sales: {str(e)}")
             return []
 
+    def get_sales_by_category(self, category: str) -> List[Sale]:
+        """Obtiene ventas que contienen productos de una categoría específica"""
+        try:
+            return self.db.query(Sale).join(
+                SaleItem, Sale.id == SaleItem.sale_id
+            ).join(
+                Product, SaleItem.product_id == Product.id
+            ).filter(
+                Product.category.ilike(f"%{category}%")
+            ).options(
+                joinedload(Sale.customer),
+                joinedload(Sale.items).joinedload(SaleItem.product)
+            ).distinct().all()
+        except Exception as e:
+            logging.error(f"Error al obtener ventas por categoría: {str(e)}")
+            return []
+
     def cancel_sale(self, sale_id: int) -> bool:
         """Cancela una venta y restaura el inventario"""
         try:

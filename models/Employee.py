@@ -14,6 +14,7 @@ class Employee(Base):
     # Relaciones
     user = relationship("User", back_populates="employee_profile")
     sales = relationship("Sale", back_populates="employee")
+    inventory_changes = relationship("InventoryHistory", back_populates="user")
 
     def __repr__(self):
         return f"Employee(id={self.id})"

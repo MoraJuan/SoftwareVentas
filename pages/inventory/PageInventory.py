@@ -45,6 +45,28 @@ class PageInventory(ft.View):
                 padding=ft.padding.only(right=20, bottom=20)
             )
 
+            # Botones de navegación a nuevas funcionalidades
+            inventory_actions = ft.Container(
+                content=ft.Row([
+                    ft.FilledButton(
+                        text="Gestionar Inventario",
+                        icon=ft.icons.INVENTORY,
+                        on_click=lambda _: self.page.go("/gestionar_inventario")
+                    ),
+                    ft.FilledTonalButton(
+                        text="Historial de Inventario",
+                        icon=ft.icons.HISTORY,
+                        on_click=lambda _: self.page.go("/historial_inventario")
+                    ),
+                    ft.OutlinedButton(
+                        text="Agregar Producto",
+                        icon=ft.icons.ADD,
+                        on_click=lambda _: self.page.go("/agregar_producto")
+                    )
+                ]),
+                padding=ft.padding.only(bottom=20)
+            )
+
             # Crear campo de búsqueda
             self.search_field = ft.TextField(
                 label="Buscar productos",
@@ -149,53 +171,27 @@ class PageInventory(ft.View):
             # Contenido principal
             main_content = ft.Column([
                 header,
-                ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
-                ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.ElevatedButton(
-                                "Nuevo Producto",
-                                icon=ft.icons.ADD_BOX,
-                                on_click=lambda _: self.page.go("/agregar_producto"),
-                                style=ft.ButtonStyle(
-                                    color=ft.colors.ON_PRIMARY,
-                                    bgcolor=ft.colors.PRIMARY
-                                )
-                            ),
-                            ft.OutlinedButton(
-                                "Ajustar Stock",
-                                icon=ft.icons.INVENTORY,
-                                on_click=lambda _: self.page.go("/ajustar_stock"),
-                            ),
-                            ft.ElevatedButton(
-                                "Actualizar Datos",
-                                icon=ft.icons.REFRESH,
-                                on_click=self.load_inventory,
-                                style=ft.ButtonStyle(
-                                    color=ft.colors.ON_SURFACE,
-                                    bgcolor=ft.colors.SURFACE_VARIANT
-                                )
-                            )
-                        ], spacing=10),
-                        ft.Container(height=20),
-                        # Agregar campo de búsqueda
-                        ft.Container(
-                            content=self.search_field,
-                            margin=ft.margin.only(bottom=15)
-                        ),
-                        ft.Text(
-                            "Productos en Inventario",
-                            size=18,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.colors.ON_SURFACE
-                        ),
-                        # Tabla de inventario
-                        self.table_container,
-                        # Controles de paginación simplificados
-                        self.pagination_container
-                    ]),
-                    padding=20
-                )
+                inventory_actions,
+                ft.Row([
+                    self.search_field,
+                    ft.Container(width=10),
+                    ft.IconButton(
+                        icon=ft.icons.REFRESH,
+                        tooltip="Actualizar inventario",
+                        on_click=self.load_inventory,
+                        icon_color=ft.colors.PRIMARY
+                    )
+                ]),
+                ft.Text(
+                    "Productos en Inventario",
+                    size=18,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.colors.ON_SURFACE
+                ),
+                # Tabla de inventario
+                self.table_container,
+                # Controles de paginación simplificados
+                self.pagination_container
             ], spacing=0, scroll=ft.ScrollMode.AUTO)
 
             # Contenedor principal
