@@ -26,6 +26,15 @@ class DashboardView(ft.View):
         self.sale_service = SaleService(session)
         self.product_service = ProductService(session)
         self.expense_service = ExpenseService(session)
+        
+        # Configurar evento de cambio de tamaño
+        self.page.on_resize = self.handle_window_resize
+        
+        # Estado para el layout responsivo
+        self.is_mobile = self.page.width < 768 if hasattr(self.page, 'width') else False
+        self.is_tablet = 768 <= self.page.width < 1200 if hasattr(self.page, 'width') else False
+        self.is_desktop = self.page.width >= 1200 if hasattr(self.page, 'width') else True
+        
         self.build_ui()
 
     def build_ui(self):
@@ -36,12 +45,13 @@ class DashboardView(ft.View):
             # Crear botón de tema
             self.theme_button = ThemeIconButton(self.page)
 
-            # Título principal con botón de tema
+            # Título principal con botón de tema (responsivo)
+            header_font_size = 24 if not self.is_mobile else 20
             header = ft.Container(
                 content=ft.Row([
                     ft.Text(
                         "Dashboard", 
-                        size=24, 
+                        size=header_font_size, 
                         weight=ft.FontWeight.BOLD,
                         color=ft.colors.ON_SURFACE
                     ),
@@ -58,21 +68,56 @@ class DashboardView(ft.View):
                 self.build_dashboard_content()
             ], spacing=0, scroll=ft.ScrollMode.AUTO)
 
-            # Contenedor principal
-            self.controls = [
-                ft.Container(
-                    content=ft.Row([
-                        self.navigation_rail,
-                        ft.VerticalDivider(width=1, color=ft.colors.OUTLINE_VARIANT),
-                        ft.Container(
-                            padding=20,
-                            content=main_content,
-                            expand=True
-                        )
-                    ]),
-                    expand=True
-                )
-            ]
+            # Contenedor principal con layout adaptable
+            if self.is_mobile:
+                # En móvil, el navigation rail se oculta
+                self.controls = [
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Container(
+                                content=ft.Row([
+                                    ft.IconButton(
+                                        icon=ft.icons.MENU,
+                                        on_click=self.toggle_navigation,
+                                        icon_color=ft.colors.ON_SURFACE
+                                    ),
+                                    ft.Text(
+                                        "Dashboard", 
+                                        size=20, 
+                                        weight=ft.FontWeight.BOLD,
+                                        color=ft.colors.ON_SURFACE
+                                    ),
+                                    ft.Container(expand=True),
+                                    self.theme_button
+                                ]),
+                                padding=10
+                            ),
+                            ft.Container(
+                                padding=10,
+                                content=main_content,
+                                expand=True
+                            )
+                        ]),
+                        expand=True
+                    )
+                ]
+            else:
+                # En tablet y desktop se muestra el navigation rail
+                padding_value = 20 if self.is_desktop else 10
+                self.controls = [
+                    ft.Container(
+                        content=ft.Row([
+                            self.navigation_rail,
+                            ft.VerticalDivider(width=1, color=ft.colors.OUTLINE_VARIANT),
+                            ft.Container(
+                                padding=padding_value,
+                                content=main_content,
+                                expand=True
+                            )
+                        ]),
+                        expand=True
+                    )
+                ]
 
         except Exception as e:
             error_message = f"Error construyendo UI: {str(e)}"
@@ -320,16 +365,19 @@ class DashboardView(ft.View):
                         text_align=ft.TextAlign.CENTER
                     ),
                     alignment=ft.alignment.center,
-                    height=300
+                    height=self.get_chart_height()
                 )
             
             # Ordenar categorías por monto de ventas (descendente)
             sorted_categories = sorted(category_sales.items(), key=lambda x: x[1], reverse=True)
             
-            # Tomar las 5 categorías principales y agrupar el resto como "Otros"
-            if len(sorted_categories) > 5:
-                top_categories = sorted_categories[:5]
-                others_sum = sum(amount for _, amount in sorted_categories[5:])
+            # Limitar categorías según dispositivo
+            max_categories = 3 if self.is_mobile else 5
+            
+            # Tomar las categorías principales y agrupar el resto como "Otros"
+            if len(sorted_categories) > max_categories:
+                top_categories = sorted_categories[:max_categories]
+                others_sum = sum(amount for _, amount in sorted_categories[max_categories:])
                 if others_sum > 0:
                     categories = [cat for cat, _ in top_categories] + ["Otros"]
                     amounts = [amount for _, amount in top_categories] + [others_sum]
@@ -361,39 +409,50 @@ class DashboardView(ft.View):
                 percentage = (amount / total) * 100 if total > 0 else 0
                 color = colors[i % len(colors)]
                 
+                # Adaptar tamaño del radio según dispositivo
+                pie_radius = 90 if self.is_mobile else 150
+                font_size = 10 if self.is_mobile else 14
+                
                 pie_sections.append(
                     ft.PieChartSection(
                         value=amount,
-                        title=f"{category} (${amount:.2f})",
+                        title=f"{category.name if hasattr(category, 'name') else 'Otros'} (${amount:.0f})" if not self.is_mobile else f"${amount:.0f}",
                         color=color,
-                        radius=150,
+                        radius=pie_radius,
                         title_style=ft.TextStyle(
-                            size=14,
+                            size=font_size,
                             weight=ft.FontWeight.BOLD,
                             color=ft.colors.WHITE
                         )
                     )
                 )
             
-            # Crear leyenda
+            # Crear leyenda, simplificada en móvil
             legend = ft.Column(spacing=5)
             for i, (category, amount) in enumerate(zip(categories, amounts)):
                 percentage = (amount / total) * 100 if total > 0 else 0
                 color = colors[i % len(colors)]
                 
+                # Texto más compacto en móvil
+                if self.is_mobile:
+                    legend_text = f"{category.name if hasattr(category, 'name') else 'Otros'}: {percentage:.1f}%"
+                else:
+                    legend_text = f"{category.name if hasattr(category, 'name') else 'Otros'}: ${amount:.2f} ({percentage:.1f}%)"
+                
                 legend.controls.append(
                     ft.Row([
                         ft.Container(
-                            width=20,
-                            height=20,
+                            width=15 if self.is_mobile else 20,
+                            height=15 if self.is_mobile else 20,
                             bgcolor=color,
                             border_radius=5
                         ),
                         ft.Text(
-                            f"{category}: ${amount:.2f} ({percentage:.1f}%)",
-                            color=ft.colors.ON_SURFACE
+                            legend_text,
+                            color=ft.colors.ON_SURFACE,
+                            size=12 if self.is_mobile else 14
                         )
-                    ], spacing=10)
+                    ], spacing=8 if self.is_mobile else 10)
                 )
             
             # Crear contenedor con el gráfico y la leyenda
@@ -406,9 +465,8 @@ class DashboardView(ft.View):
                         expand=True
                     ),
                     legend
-                ], spacing=20, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                height=300,
-                alignment=ft.alignment.center
+                ], spacing=10 if self.is_mobile else 20),
+                height=self.get_chart_height()
             )
             
         except Exception as e:
@@ -420,103 +478,128 @@ class DashboardView(ft.View):
                     text_align=ft.TextAlign.CENTER
                 ),
                 alignment=ft.alignment.center,
-                height=300
+                height=self.get_chart_height()
             )
     
+    def get_chart_height(self):
+        """Devuelve la altura apropiada para gráficos según el dispositivo"""
+        if self.is_mobile:
+            return 250
+        elif self.is_tablet:
+            return 280
+        else:
+            return 300
+
     def create_monthly_chart_flet(self, ventas):
         try:
-            # Agrupar ventas por mes
-            monthly_sales = defaultdict(float)
+            # Inicializar ventas mensuales
+            today = datetime.now()
+            year = today.year
+            monthly_sales = {month: 0 for month in range(1, 13)}
             
+            # Agrupar ventas por mes
             for venta in ventas:
-                try:
-                    if hasattr(venta, 'date') and venta.date is not None:
+                if hasattr(venta, 'date') and venta.date is not None:
+                    # Solo contar ventas del año actual
+                    if venta.date.year == year:
                         month = venta.date.month
                         if hasattr(venta, 'total_amount') and venta.total_amount is not None:
                             monthly_sales[month] += venta.total_amount
-                except Exception as venta_error:
-                    logging.error(f"Error procesando venta para gráfico mensual: {str(venta_error)}")
-                    continue
             
             # Si no hay datos, mostrar mensaje
-            if not monthly_sales:
+            if sum(monthly_sales.values()) == 0:
                 return ft.Container(
                     content=ft.Text(
-                        "No hay datos de ventas mensuales",
+                        "No hay datos de ventas mensuales para este año",
                         color=ft.colors.ON_SURFACE_VARIANT,
                         text_align=ft.TextAlign.CENTER
                     ),
                     alignment=ft.alignment.center,
-                    height=300
+                    height=self.get_chart_height()
                 )
             
-            # Preparar datos para el gráfico
-            months = list(range(1, 13))  # 1-12 para todos los meses
-            sales_data = [monthly_sales.get(month, 0) for month in months]
+            # Limitar a últimos 6 meses en móvil, todo el año en desktop
+            if self.is_mobile:
+                current_month = today.month
+                start_month = max(1, current_month - 5)  # Mostrar últimos 6 meses
+                months_to_display = range(start_month, current_month + 1)
+                monthly_sales = {month: amount for month, amount in monthly_sales.items() if month in months_to_display}
             
             # Nombres de los meses
-            try:
-                month_names = []
-                for m in months:
-                    try:
-                        month_name = calendar.month_abbr[m]
-                        month_names.append(month_name)
-                    except:
-                        month_names.append(f"Mes {m}")
-            except:
-                month_names = [f"Mes {m}" for m in months]
+            month_names = [
+                calendar.month_abbr[1], calendar.month_abbr[2],
+                calendar.month_abbr[3], calendar.month_abbr[4],
+                calendar.month_abbr[5], calendar.month_abbr[6],
+                calendar.month_abbr[7], calendar.month_abbr[8],
+                calendar.month_abbr[9], calendar.month_abbr[10],
+                calendar.month_abbr[11], calendar.month_abbr[12]
+            ]
             
-            # Encontrar el valor máximo para escalar el gráfico
-            max_value = max(sales_data) if sales_data else 0
+            # En móvil, usar nombres de mes más cortos
+            if self.is_mobile:
+                month_names = [name[:3] for name in month_names]  # Usar 3 letras en vez de 1
             
-            # Crear gráfico de barras con BarChart de Flet
+            # Calcular valor máximo para el eje Y
+            max_value = max(monthly_sales.values()) if monthly_sales else 0
+            
+            # Calcular intervalo para el eje Y (redondeado a un número "bonito")
+            y_interval = max(1, 10 ** (len(str(int(max_value))) - 1))
+            while max_value / y_interval > 10:
+                y_interval *= 2
+            
+            # Número de divisiones en el eje Y
+            y_ticks = max(4, int(max_value / y_interval)) + 1
+            
+            # Crear barras para cada mes
             bar_groups = []
-            for i, (month, value) in enumerate(zip(month_names, sales_data)):
+            
+            for month, amount in monthly_sales.items():
                 bar_groups.append(
                     ft.BarChartGroup(
-                        x=i,
+                        x=month - 1,  # Índice 0-based para los meses
                         bar_rods=[
                             ft.BarChartRod(
                                 from_y=0,
-                                to_y=value,
-                                width=20,
-                                color=ft.colors.BLUE,
-                                tooltip=f"{month}: ${value:.2f}",
+                                to_y=amount,
+                                width=18 if not self.is_mobile else 12,
+                                color=ft.colors.PRIMARY,
+                                tooltip=f"{month_names[month - 1]}: ${amount:.2f}",
                                 border_radius=0
                             )
                         ]
                     )
                 )
             
-            # Crear etiquetas para el eje X
+            # Crear eje X con nombres de meses
             x_axis = ft.ChartAxis(
                 labels=[
                     ft.ChartAxisLabel(
                         value=i,
                         label=ft.Container(
-                            ft.Text(
-                                month,
-                                size=10,
+                            content=ft.Text(
+                                month_names[i], 
+                                size=10 if not self.is_mobile else 8, 
                                 color=ft.colors.ON_SURFACE,
-                                text_align=ft.TextAlign.CENTER
+                                text_align=ft.TextAlign.CENTER if self.is_mobile else ft.TextAlign.LEFT
                             ),
-                            alignment=ft.alignment.center,
-                            width=30
+                            # Ajustar espacio
+                            padding=ft.padding.only(bottom=5) if self.is_mobile else None
                         )
                     )
-                    for i, month in enumerate(month_names)
-                ],
-                labels_size=32
+                    for i in range(len(month_names)) if i + 1 in monthly_sales.keys()
+                ]
             )
             
-            # Crear etiquetas para el eje Y
-            y_ticks = 5
-            y_interval = max_value / y_ticks if max_value > 0 else 1
+            # Crear eje Y
             y_axis = ft.ChartAxis(
                 labels=[
                     ft.ChartAxisLabel(
                         value=i * y_interval,
-                        label=ft.Text(f"${i * y_interval:.0f}", size=10, color=ft.colors.ON_SURFACE)
+                        label=ft.Text(
+                            f"${i * y_interval:.0f}", 
+                            size=10 if not self.is_mobile else 8, 
+                            color=ft.colors.ON_SURFACE
+                        )
                     )
                     for i in range(y_ticks + 1)
                 ]
@@ -532,7 +615,7 @@ class DashboardView(ft.View):
                     color=ft.colors.OUTLINE_VARIANT,
                     interval=y_interval
                 ),
-                tooltip_bgcolor=ft.colors.with_opacity(0.8, ft.colors.SURFACE_VARIANT),
+                tooltip_bgcolor=ft.colors.SURFACE_VARIANT,
                 max_y=max_value * 1.1,  # Añadir un 10% más para espacio
                 interactive=True,
                 expand=True
@@ -540,7 +623,7 @@ class DashboardView(ft.View):
             
             return ft.Container(
                 content=bar_chart,
-                height=300,
+                height=self.get_chart_height(),
                 border_radius=5,
                 padding=10
             )
@@ -554,29 +637,49 @@ class DashboardView(ft.View):
                     text_align=ft.TextAlign.CENTER
                 ),
                 alignment=ft.alignment.center,
-                height=300
+                height=self.get_chart_height()
             )
 
     def build_activity_section(self):
         try:
             # Crear contenedor con pestañas para actividad reciente
-            tabs = ft.Tabs(
-                selected_index=0,
-                animation_duration=300,
-                tabs=[
-                    ft.Tab(
-                        text="Ventas Recientes",
-                        icon=ft.icons.SHOPPING_CART,
-                        content=self.build_recent_sales_section()
-                    ),
-                    ft.Tab(
-                        text="Inventario Reciente",
-                        icon=ft.icons.INVENTORY,
-                        content=self.build_recent_inventory_section()
-                    ),
-                ],
-                expand=1
-            )
+            # Usar lista de tabs horizontal en móvil y tabs normales en desktop
+            if self.is_mobile:
+                # Versión móvil: Tabs simplificadas con iconos
+                tabs = ft.Tabs(
+                    selected_index=0,
+                    animation_duration=300,
+                    tabs=[
+                        ft.Tab(
+                            icon=ft.icons.SHOPPING_CART,
+                            content=self.build_recent_sales_section()
+                        ),
+                        ft.Tab(
+                            icon=ft.icons.INVENTORY,
+                            content=self.build_recent_inventory_section()
+                        ),
+                    ],
+                    expand=1
+                )
+            else:
+                # Versión tablet/desktop: Tabs con texto e iconos
+                tabs = ft.Tabs(
+                    selected_index=0,
+                    animation_duration=300,
+                    tabs=[
+                        ft.Tab(
+                            text="Ventas Recientes",
+                            icon=ft.icons.SHOPPING_CART,
+                            content=self.build_recent_sales_section()
+                        ),
+                        ft.Tab(
+                            text="Inventario",
+                            icon=ft.icons.INVENTORY,
+                            content=self.build_recent_inventory_section()
+                        ),
+                    ],
+                    expand=1
+                )
             
             return tabs
             
@@ -597,14 +700,16 @@ class DashboardView(ft.View):
             # Ordenar por fecha (más reciente primero)
             recent_sales.sort(key=lambda x: x.date, reverse=True)
             
-            # Limitar a las 10 actividades más recientes
-            recent_sales = recent_sales[:10]
+            # Limitar a las 5 ventas más recientes en móvil, 10 en otros dispositivos
+            limit = 5 if self.is_mobile else 10
+            recent_sales = recent_sales[:limit]
             
-            # Crear contenedor principal
+            # Crear contenedor principal con altura adaptativa
+            container_height = 350 if self.is_mobile else 400
             content = ft.Column(
                 spacing=10,
                 scroll=ft.ScrollMode.AUTO,
-                height=400
+                height=container_height
             )
             
             # Si no hay ventas, mostrar mensaje
@@ -680,57 +785,98 @@ class DashboardView(ft.View):
                         )
                     )
                 
-                # Crear una tarjeta expandible para cada venta
-                sale_card = ft.Card(
-                    content=ft.Column([
-                        # Encabezado - Siempre visible
-                        ft.ListTile(
-                            leading=ft.Container(
-                                content=ft.Icon(ft.icons.SHOPPING_CART, color=ft.colors.ON_INVERSE_SURFACE),
-                                bgcolor=ft.colors.PRIMARY,
-                                border_radius=8,
-                                padding=8
-                            ),
-                            title=ft.Text(
-                                f"Venta #{sale.id} por ${sale.total_amount:.2f}",
-                                weight=ft.FontWeight.BOLD,
-                                color=ft.colors.ON_SURFACE
-                            ),
-                            subtitle=ft.Column([
-                                ft.Text(f"Cliente: {customer_name}", color=ft.colors.ON_SURFACE_VARIANT),
-                                ft.Text(f"Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT, size=12)
-                            ], spacing=2, tight=True),
-                            trailing=ft.IconButton(
-                                icon=ft.icons.EXPAND_MORE,
-                                tooltip="Ver detalles",
-                                on_click=lambda e, s=sale.id: self.toggle_sale_details(e, s)
+                # Crear una tarjeta expandible para cada venta, con diseño adaptado al dispositivo
+                if self.is_mobile:
+                    # Versión móvil: más compacta, con menos información
+                    sale_card = ft.Card(
+                        content=ft.Column([
+                            # Encabezado - Siempre visible, más compacto
+                            ft.ListTile(
+                                leading=ft.Container(
+                                    content=ft.Icon(ft.icons.SHOPPING_CART, 
+                                                   color=ft.colors.ON_INVERSE_SURFACE,
+                                                   size=16),
+                                    bgcolor=ft.colors.PRIMARY,
+                                    border_radius=8,
+                                    padding=5,
+                                    width=26,
+                                    height=26
+                                ),
+                                title=ft.Text(
+                                    f"Venta #{sale.id}",
+                                    weight=ft.FontWeight.BOLD,
+                                    color=ft.colors.ON_SURFACE,
+                                    size=14
+                                ),
+                                subtitle=ft.Text(
+                                    f"${sale.total_amount:.2f} • {date_str}", 
+                                    color=ft.colors.ON_SURFACE_VARIANT,
+                                    size=12
+                                ),
+                                trailing=ft.IconButton(
+                                    icon=ft.icons.ARROW_FORWARD_IOS,
+                                    icon_size=16,
+                                    tooltip="Ver detalles",
+                                    on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
+                                ),
+                                dense=True
                             )
-                        ),
-                        
-                        # Contenedor para detalles - Inicialmente oculto
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Divider(),
-                                ft.Text("Productos:", weight=ft.FontWeight.BOLD),
-                                products_table,
-                                ft.Row([
-                                    ft.Container(expand=True),
-                                    ft.FilledButton(
-                                        "Ver detalles",
-                                        icon=ft.icons.VISIBILITY,
-                                        on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
-                                    )
-                                ], alignment=ft.MainAxisAlignment.END)
-                            ]),
-                            padding=10,
-                            visible=False,
-                            # Usaremos la key para identificar este contenedor
-                            key=f"sale_details_{sale.id}"
-                        )
-                    ]),
-                    elevation=2,
-                    margin=ft.margin.only(bottom=10)
-                )
+                        ]),
+                        elevation=1,
+                        margin=ft.margin.only(bottom=5)
+                    )
+                else:
+                    # Versión desktop: completa con detalles expandibles
+                    sale_card = ft.Card(
+                        content=ft.Column([
+                            # Encabezado - Siempre visible
+                            ft.ListTile(
+                                leading=ft.Container(
+                                    content=ft.Icon(ft.icons.SHOPPING_CART, color=ft.colors.ON_INVERSE_SURFACE),
+                                    bgcolor=ft.colors.PRIMARY,
+                                    border_radius=8,
+                                    padding=8
+                                ),
+                                title=ft.Text(
+                                    f"Venta #{sale.id} por ${sale.total_amount:.2f}",
+                                    weight=ft.FontWeight.BOLD,
+                                    color=ft.colors.ON_SURFACE
+                                ),
+                                subtitle=ft.Column([
+                                    ft.Text(f"Cliente: {customer_name}", color=ft.colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT, size=12)
+                                ], spacing=2, tight=True),
+                                trailing=ft.IconButton(
+                                    icon=ft.icons.EXPAND_MORE,
+                                    tooltip="Ver detalles",
+                                    on_click=lambda e, s=sale.id: self.toggle_sale_details(e, s)
+                                )
+                            ),
+                            
+                            # Contenedor para detalles - Inicialmente oculto
+                            ft.Container(
+                                content=ft.Column([
+                                    ft.Divider(),
+                                    ft.Text("Productos:", weight=ft.FontWeight.BOLD),
+                                    products_table,
+                                    ft.Row([
+                                        ft.Container(expand=True),
+                                        ft.FilledButton(
+                                            "Ver detalles",
+                                            icon=ft.icons.VISIBILITY,
+                                            on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
+                                        )
+                                    ], alignment=ft.MainAxisAlignment.END)
+                                ]),
+                                padding=10,
+                                visible=False,
+                                # Usaremos la key para identificar este contenedor
+                                key=f"sale_details_{sale.id}"
+                            )
+                        ]),
+                        elevation=2,
+                        margin=ft.margin.only(bottom=10)
+                    )
                 
                 # Añadir la tarjeta al contenedor principal
                 content.controls.append(sale_card)
@@ -743,15 +889,16 @@ class DashboardView(ft.View):
             
     def build_recent_inventory_section(self):
         try:
-            # Obtener cambios recientes en el inventario
-            inventory_changes = self.product_service.inventory_history_service.get_recent_history(limit=10)
+            # Obtener cambios recientes en el inventario, limitados según dispositivo
+            limit = 5 if self.is_mobile else 10
+            inventory_changes = self.product_service.inventory_history_service.get_recent_history(limit=limit)
             
             # Crear lista de actividades
             activities = []
             
             for change in inventory_changes:
                 # Formatear fecha
-                date_str = change.date.strftime("%d/%m/%Y %H:%M")
+                date_str = change.date.strftime("%d/%m/%Y %H:%M") if not self.is_mobile else change.date.strftime("%d/%m %H:%M")
                 
                 # Determinar ícono y color según el tipo de cambio
                 icon_name = ft.icons.ARROW_UPWARD
@@ -780,29 +927,48 @@ class DashboardView(ft.View):
                 else:
                     activity = f"Ajuste de {change.previous_stock} → {change.new_stock} unidades"
                 
-                # Crear elemento de lista
-                activities.append(
-                    ft.ListTile(
-                        leading=ft.Container(
-                            content=ft.Icon(icon_name, color=ft.colors.ON_INVERSE_SURFACE),
-                            bgcolor=bg_color,
-                            border_radius=8,
-                            padding=8
-                        ),
-                        title=ft.Text(activity, color=ft.colors.ON_SURFACE),
-                        subtitle=ft.Column([
-                            ft.Text(f"Producto: {product_name}", color=ft.colors.ON_SURFACE_VARIANT),
-                            ft.Text(f"Motivo: {change.change_reason or 'No especificado'}", color=ft.colors.ON_SURFACE_VARIANT, overflow=ft.TextOverflow.ELLIPSIS),
-                            ft.Text(f"Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT, size=12)
-                        ], spacing=2, tight=True),
-                        trailing=ft.IconButton(
-                            icon=ft.icons.VISIBILITY,
-                            icon_color=ft.colors.ON_SURFACE_VARIANT,
-                            tooltip="Ver detalles",
-                            on_click=lambda _, p=change.product_id: self.page.go(f"/historial_inventario?product_id={p}")
+                if self.is_mobile:
+                    # Versión móvil: Más compacta, con menos información
+                    activities.append(
+                        ft.ListTile(
+                            leading=ft.Container(
+                                content=ft.Icon(icon_name, color=ft.colors.ON_INVERSE_SURFACE, size=16),
+                                bgcolor=bg_color,
+                                border_radius=8,
+                                padding=5,
+                                width=26,
+                                height=26
+                            ),
+                            title=ft.Text(
+                                product_name if len(product_name) < 25 else product_name[:22] + "...", 
+                                color=ft.colors.ON_SURFACE,
+                                size=14
+                            ),
+                            subtitle=ft.Text(
+                                f"{activity} • {date_str}", 
+                                color=ft.colors.ON_SURFACE_VARIANT,
+                                size=12
+                            ),
+                            dense=True
                         )
                     )
-                )
+                else:
+                    # Versión desktop: Completa con toda la información
+                    activities.append(
+                        ft.ListTile(
+                            leading=ft.Container(
+                                content=ft.Icon(icon_name, color=ft.colors.ON_INVERSE_SURFACE),
+                                bgcolor=bg_color,
+                                border_radius=8,
+                                padding=8
+                            ),
+                            title=ft.Text(activity, color=ft.colors.ON_SURFACE),
+                            subtitle=ft.Column([
+                                ft.Text(product_name, color=ft.colors.ON_SURFACE_VARIANT),
+                                ft.Text(date_str, color=ft.colors.ON_SURFACE_VARIANT, size=12)
+                            ], spacing=2, tight=True)
+                        )
+                    )
             
             # Si no hay cambios recientes, mostrar mensaje
             if not activities:
@@ -828,25 +994,39 @@ class DashboardView(ft.View):
     def toggle_sale_details(self, e, sale_id):
         """Alterna la visibilidad de los detalles de una venta"""
         try:
+            # Solo ejecutar para dispositivos no móviles (la versión móvil no tiene detalles expandibles)
+            if self.is_mobile:
+                # En móviles, navegar directamente a la vista de detalles
+                self.page.go(f"/ver_reportes/ventas?id={sale_id}")
+                return
+                
             # Buscar el contenedor de detalles por su key
             details_key = f"sale_details_{sale_id}"
-            for control in self.controls[0].content.controls[0].content.controls[1].content.tabs[0].content.controls:
-                if isinstance(control, ft.Card):
-                    for subcontrol in control.content.controls:
-                        if hasattr(subcontrol, 'key') and subcontrol.key == details_key:
-                            # Cambiar la visibilidad
-                            subcontrol.visible = not subcontrol.visible
-                            # Cambiar el ícono si está visible o no
-                            if control.content.controls[0].trailing:
-                                if subcontrol.visible:
-                                    control.content.controls[0].trailing.icon = ft.icons.EXPAND_LESS
-                                else:
-                                    control.content.controls[0].trailing.icon = ft.icons.EXPAND_MORE
-                            # Actualizar UI
-                            self.update()
-                            return
+            
+            # Método simplificado para encontrar el control por su key
+            for control in self.page.find_all():
+                if hasattr(control, 'key') and control.key == details_key:
+                    # Cambiar la visibilidad
+                    control.visible = not control.visible
+                    
+                    # Intentar cambiar el ícono si es posible
+                    try:
+                        # Encontrar el botón que disparó el evento
+                        if hasattr(e, 'control') and hasattr(e.control, 'icon'):
+                            e.control.icon = ft.icons.EXPAND_LESS if control.visible else ft.icons.EXPAND_MORE
+                    except:
+                        pass
+                        
+                    # Actualizar UI
+                    self.update()
+                    return
+                                            
+            # Si llegamos aquí, no encontramos el control
+            logging.warning(f"No se encontró el detalle de venta con key {details_key}")
+            
         except Exception as e:
             logging.error(f"Error al alternar detalles de venta: {str(e)}")
+            # No mostramos error al usuario para no interrumpir la experiencia
 
     def handle_logout(self, e):
         try:
@@ -862,3 +1042,98 @@ class DashboardView(ft.View):
             self.update()
         except Exception as e:
             show_error_message(self.page, f"Error al redimensionar: {str(e)}")
+    
+    def handle_window_resize(self, e):
+        """Maneja el evento de cambio de tamaño de la ventana"""
+        try:
+            # Actualizar el estado según el nuevo tamaño
+            self.is_mobile = self.page.width < 768
+            self.is_tablet = 768 <= self.page.width < 1200
+            self.is_desktop = self.page.width >= 1200
+            
+            # Reconstruir la UI
+            self.build_ui()
+            self.update()
+        except Exception as e:
+            logging.error(f"Error al manejar cambio de tamaño: {str(e)}")
+            show_error_message(self.page, f"Error al redimensionar: {str(e)}")
+    
+    def toggle_navigation(self, e):
+        """Muestra un drawer de navegación en dispositivos móviles"""
+        try:
+            def on_dismiss(e):
+                self.page.drawer.open = False
+                self.page.update()
+            
+            # Crear drawer de navegación con ListTiles en lugar de NavigationDrawerDestination
+            self.page.drawer = ft.NavigationDrawer(
+                controls=[
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Container(
+                                content=ft.Row([
+                                    ft.Text(
+                                        "Sistema de Ventas",
+                                        weight=ft.FontWeight.BOLD,
+                                        size=20,
+                                        color=ft.colors.ON_SURFACE
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.icons.CLOSE,
+                                        on_click=on_dismiss
+                                    )
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                padding=10
+                            ),
+                            ft.Divider(),
+                            # Usar ListTile en lugar de NavigationDrawerDestination
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.DASHBOARD, color=ft.colors.PRIMARY),
+                                title=ft.Text("Dashboard", color=ft.colors.ON_SURFACE, weight=ft.FontWeight.BOLD),
+                                on_click=lambda _: self.navigate_to("/")
+                            ),
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.SHOPPING_CART),
+                                title=ft.Text("Ventas"),
+                                on_click=lambda _: self.navigate_to("/ver_ventas")
+                            ),
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.INVENTORY),
+                                title=ft.Text("Inventario"),
+                                on_click=lambda _: self.navigate_to("/ver_inventario")
+                            ),
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.ASSESSMENT),
+                                title=ft.Text("Reportes"),
+                                on_click=lambda _: self.navigate_to("/ver_reportes")
+                            ),
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.BUSINESS),
+                                title=ft.Text("Proveedores"),
+                                on_click=lambda _: self.navigate_to("/ver_proveedores")
+                            ),
+                            ft.Divider(),
+                            ft.ListTile(
+                                leading=ft.Icon(ft.icons.LOGOUT, color=ft.colors.ERROR),
+                                title=ft.Text("Cerrar Sesión", color=ft.colors.ERROR),
+                                on_click=self.handle_logout
+                            ),
+                        ]),
+                        padding=ft.padding.only(top=40)
+                    )
+                ],
+                on_dismiss=on_dismiss
+            )
+            self.page.drawer.open = True
+            self.page.update()
+        except Exception as e:
+            logging.error(f"Error al mostrar drawer de navegación: {str(e)}")
+    
+    def navigate_to(self, route):
+        """Navega a una ruta y cierra el drawer"""
+        try:
+            self.page.drawer.open = False
+            self.page.go(route)
+        except Exception as e:
+            logging.error(f"Error al navegar: {str(e)}")
+            show_error_message(self.page, f"Error al navegar: {str(e)}")

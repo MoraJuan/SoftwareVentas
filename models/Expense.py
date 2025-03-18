@@ -16,7 +16,7 @@ class Expense(Base):
     category = Column(String, nullable=False)  # 'compra_inventario', 'operativo', 'salarios', etc.
     
     # Relaciones opcionales
-    supplier_id = Column(Integer, ForeignKey('supplier.id'), nullable=True)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
     supplier = relationship('Supplier')
     
     # Validaciones

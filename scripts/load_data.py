@@ -18,7 +18,7 @@ def main():
         # Crear una nueva sesión
         session = SessionLocal()
         
-        from utils.load_sample_data import load_sample_data
+        from utils.sample_data import load_sample_data
         load_sample_data(session)
         
         print("Proceso completado exitosamente.")

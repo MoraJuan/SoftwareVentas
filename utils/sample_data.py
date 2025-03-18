@@ -125,127 +125,127 @@ def create_sample_products(db: Session, categories, suppliers):
     """Crea productos de ejemplo"""
     product_service = ProductService(db)
     
-    # Obtener nombres de categorías y proveedores para referencias
-    category_names = [c.name for c in categories]
-    supplier_names = [s.name for s in suppliers]
+    # Crear mapeos de nombres a IDs para categorías y proveedores
+    category_map = {c.name: c.id for c in categories}
+    supplier_map = {s.name: s.id for s in suppliers}
     
     product_data = [
         {
             "name": "Laptop HP Pavilion",
             "description": "Laptop con procesador i5, 8GB RAM, 512GB SSD",
-            "category": "Electrónica",
+            "category_id": category_map.get("Electrónica"),
             "price": 799.99,
             "stock": 15,
             "code": "LAP-001",
-            "supplier": "TechSolutions SA"
+            "supplier_id": supplier_map.get("TechSolutions SA")
         },
         {
             "name": "Monitor LG 24 pulgadas",
             "description": "Monitor LED Full HD 1080p",
-            "category": "Electrónica",
+            "category_id": category_map.get("Electrónica"),
             "price": 149.99,
             "stock": 25,
             "code": "MON-002",
-            "supplier": "TechSolutions SA"
+            "supplier_id": supplier_map.get("TechSolutions SA")
         },
         {
             "name": "Teclado Mecánico RGB",
             "description": "Teclado gaming con switches Blue",
-            "category": "Electrónica",
+            "category_id": category_map.get("Electrónica"),
             "price": 59.99,
             "stock": 30,
             "code": "TEC-003",
-            "supplier": "Distribuidora Global"
+            "supplier_id": supplier_map.get("Distribuidora Global")
         },
         {
             "name": "Silla de Oficina Ergonómica",
             "description": "Silla ajustable con soporte lumbar",
-            "category": "Oficina",
+            "category_id": category_map.get("Oficina"),
             "price": 129.99,
             "stock": 10,
             "code": "SIL-004",
-            "supplier": "Mayorista Express"
+            "supplier_id": supplier_map.get("Mayorista Express")
         },
         {
             "name": "Escritorio de Madera",
             "description": "Escritorio con dos cajones",
-            "category": "Oficina",
+            "category_id": category_map.get("Oficina"),
             "price": 199.99,
             "stock": 8,
             "code": "ESC-005",
-            "supplier": "Mayorista Express"
+            "supplier_id": supplier_map.get("Mayorista Express")
         },
         {
             "name": "Licuadora Oster",
             "description": "Licuadora de 3 velocidades",
-            "category": "Hogar",
+            "category_id": category_map.get("Hogar"),
             "price": 49.99,
             "stock": 20,
             "code": "LIC-006",
-            "supplier": "Importadora FastShip"
+            "supplier_id": supplier_map.get("Importadora FastShip")
         },
         {
             "name": "Juego de Sartenes",
             "description": "Set de 3 sartenes antiadherentes",
-            "category": "Hogar",
+            "category_id": category_map.get("Hogar"),
             "price": 34.99,
             "stock": 15,
             "code": "SAR-007",
-            "supplier": "Importadora FastShip"
+            "supplier_id": supplier_map.get("Importadora FastShip")
         },
         {
             "name": "Juego de Destornilladores",
             "description": "Kit de 12 destornilladores de precisión",
-            "category": "Herramientas",
+            "category_id": category_map.get("Herramientas"),
             "price": 19.99,
             "stock": 40,
             "code": "DEST-008",
-            "supplier": "Distribuidora Global"
+            "supplier_id": supplier_map.get("Distribuidora Global")
         },
         {
             "name": "Taladro Inalámbrico",
             "description": "Taladro recargable 12V con accesorios",
-            "category": "Herramientas",
+            "category_id": category_map.get("Herramientas"),
             "price": 89.99,
             "stock": 12,
             "code": "TAL-009",
-            "supplier": "Distribuidora Global"
+            "supplier_id": supplier_map.get("Distribuidora Global")
         },
         {
             "name": "Café Orgánico Premium",
             "description": "Café en grano de origen único, 500g",
-            "category": "Alimentos",
+            "category_id": category_map.get("Alimentos"),
             "price": 12.99,
             "stock": 50,
             "code": "CAF-010",
-            "supplier": "Importadora FastShip"
+            "supplier_id": supplier_map.get("Importadora FastShip")
         },
         {
             "name": "Agua Mineral 6 Pack",
             "description": "Pack de 6 botellas de 1L",
-            "category": "Bebidas",
+            "category_id": category_map.get("Bebidas"),
             "price": 5.99,
             "stock": 100,
             "code": "AGU-011",
-            "supplier": "Mayorista Express"
+            "supplier_id": supplier_map.get("Mayorista Express")
         },
         {
             "name": "Camiseta 100% Algodón",
             "description": "Camiseta talla M varios colores",
-            "category": "Ropa",
+            "category_id": category_map.get("Ropa"),
             "price": 15.99,
             "stock": 60,
             "code": "CAM-012",
-            "supplier": "Distribuidora Global"
+            "supplier_id": supplier_map.get("Distribuidora Global")
         },
         {
             "name": "Producto sin nombre",
             "description": "Producto de prueba",
-            "category": None,
+            "category_id": None,
             "price": 100.0,
             "stock": 5,
             "code": "TEST-013",
-            "supplier": None
+            "supplier_id": None
         }
     ]
     
@@ -259,14 +259,17 @@ def create_sample_products(db: Session, categories, suppliers):
                 products.append(existing)
                 continue
             
-            # Validar que la categoría existe
-            if data["category"] and data["category"] not in category_names:
-                data["category"] = None
-                
-            # Validar que el proveedor existe
-            if data["supplier"] and data["supplier"] not in supplier_names:
-                data["supplier"] = None
-                
+            # Verificar que la categoría y proveedor existen
+            if not data.get("category_id"):
+                # Si no hay categoría, usar la primera disponible
+                if categories:
+                    data["category_id"] = categories[0].id
+                    
+            if not data.get("supplier_id"):
+                # Si no hay proveedor, usar el primero disponible
+                if suppliers:
+                    data["supplier_id"] = suppliers[0].id
+                    
             # Crear nuevo producto
             product = product_service.create_product(data)
             products.append(product)

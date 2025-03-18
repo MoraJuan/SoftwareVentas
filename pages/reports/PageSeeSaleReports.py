@@ -317,7 +317,7 @@ class SeeSalesView(ft.View):
     def add_sale_to_table(self, sale):
         """Añade una venta a la tabla de ventas"""
         try:
-            # Crear fila para la venta
+            # Crear fila para la venta con un botón de detalles en lugar de on_select
             self.sales_table.rows.append(
                 ft.DataRow(
                     cells=[
@@ -327,9 +327,19 @@ class SeeSalesView(ft.View):
                         ft.DataCell(ft.Text(", ".join([item.product.name if item.product else "Producto eliminado" for item in sale.items]))),
                         ft.DataCell(ft.Text(f"${sale.total_amount:.2f}")),
                         ft.DataCell(ft.Text(f"{sale.payment_method}")),
-                        ft.DataCell(ft.Text(sale.status))
-                    ],
-                    on_select=lambda e, sale_id=sale.id: self.view_sale_details(sale_id)
+                        ft.DataCell(ft.Container(
+                            content=ft.Row([
+                                ft.Text(sale.status),
+                                ft.IconButton(
+                                    icon=ft.icons.VISIBILITY,
+                                    icon_color=ft.colors.PRIMARY,
+                                    tooltip="Ver detalles",
+                                    on_click=lambda e, sale_id=sale.id: self.view_sale_details(sale_id)
+                                )
+                            ]),
+                            alignment=ft.alignment.center_left
+                        ))
+                    ]
                 )
             )
         except Exception as e:

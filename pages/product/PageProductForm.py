@@ -2,6 +2,7 @@ import flet as ft
 from sqlalchemy.orm import Session
 from services.productService import ProductService
 from services.categoryService import CategoryService
+from services.supplierService import SupplierService
 from ui.components.alerts import show_success_message, show_error_message
 from datetime import datetime
 from models.Product import Product
@@ -14,6 +15,7 @@ class PageProductForm(ft.View):
         self.edit_mode = edit_mode
         self.product_service = ProductService(session)
         self.category_service = CategoryService(session)
+        self.supplier_service = SupplierService(session)
         self.page.title = "Agregar Producto" if not edit_mode else "Editar Producto"
         
         # Estado para el producto seleccionado
@@ -21,6 +23,9 @@ class PageProductForm(ft.View):
         
         # Cargar categorías
         self.categories = self.category_service.get_active_categories()
+        
+        # Cargar proveedores
+        self.suppliers = self.supplier_service.get_all_suppliers()
         
         self.build_ui()
 
@@ -74,6 +79,18 @@ class PageProductForm(ft.View):
             value="0"  # Valor por defecto
         )
         
+        # Dropdown para proveedores
+        supplier_options = [ft.dropdown.Option("0", "Seleccione un proveedor")]
+        sorted_suppliers = sorted(self.suppliers, key=lambda sup: sup.name)
+        for supplier in sorted_suppliers:
+            supplier_options.append(ft.dropdown.Option(str(supplier.id), supplier.name))
+        self.supplier_input = ft.Dropdown(
+            label="Proveedor",
+            width=300,
+            options=supplier_options,
+            value="0"  # Valor por defecto
+        )
+        
         # Botón para gestionar categorías
         self.manage_categories_button = ft.OutlinedButton(
             text="Gestionar Categorías",
@@ -84,10 +101,6 @@ class PageProductForm(ft.View):
         # Otros campos
         self.barcode_input = ft.TextField(
             label="Código de Barras",
-            width=300,
-        )
-        self.supplier_input = ft.TextField(
-            label="Proveedor",
             width=300,
         )
         self.code_input = ft.TextField(
@@ -221,9 +234,9 @@ class PageProductForm(ft.View):
             price = float(self.price_input.value or 0)
             stock = int(self.stock_input.value or 0)
             description = self.description_input.value
-            category = self.category_input.value
+            category_id = int(self.category_input.value)
+            supplier_id = int(self.supplier_input.value)
             barcode = self.barcode_input.value
-            supplier = self.supplier_input.value
             code = self.code_input.value
 
             if not name:
@@ -236,9 +249,9 @@ class PageProductForm(ft.View):
                 "price": price,
                 "stock": stock,
                 "description": description,
-                "category": category,
+                "category_id": category_id,
+                "supplier_id": supplier_id,
                 "barcode": barcode,
-                "supplier": supplier,
                 "code": code
             }
             
@@ -271,7 +284,7 @@ class PageProductForm(ft.View):
         self.description_input.value = ""
         self.category_input.value = "0"
         self.barcode_input.value = ""
-        self.supplier_input.value = ""
+        self.supplier_input.value = "0"
         self.code_input.value = ""
         self.adjustment_input.value = "0"
         self.reason_input.value = ""
@@ -298,9 +311,8 @@ class PageProductForm(ft.View):
                     self.description_input.value = product.description or ""
                     
                     # Manejar la categoría - podría ser un ID o un nombre
-                    if product.category and str(product.category).isdigit():
-                        # Si es un ID, usarlo directamente
-                        self.category_input.value = str(product.category)
+                    if product.category_id:
+                        self.category_input.value = str(product.category_id)
                     else:
                         # Si no es un ID, buscar la categoría por nombre o usar el valor por defecto
                         found = False
@@ -312,8 +324,10 @@ class PageProductForm(ft.View):
                         if not found:
                             self.category_input.value = "0"  # Valor por defecto si no se encuentra
                     
+                    if product.supplier_id:
+                        self.supplier_input.value = str(product.supplier_id)
+                    
                     self.barcode_input.value = product.barcode or ""
-                    self.supplier_input.value = product.supplier or ""
                     self.code_input.value = product.code or ""
                     
                     # Habilitar los botones de ajuste de inventario

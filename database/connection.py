@@ -18,17 +18,18 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     """Inicializa la base de datos creando todas las tablas"""
     # Importar todos los modelos aquí para asegurar que están registrados
+    # Es importante importar Category antes que Product debido a la relación de clave foránea
+    from models.Category import Category
+    from models.Supplier import Supplier
     from models.User import User
     from models.Customer import Customer
     from models.Product import Product
     from models.Sale import Sale
     from models.SaleItem import SaleItem
     from models.Stock import Stock
-    from models.Supplier import Supplier
     from models.CommercialInvoice import CommercialInvoice
     from models.Administrator import Administrator
     from models.Employee import Employee
-    from models.Category import Category
     
     # Crear todas las tablas
     Base.metadata.create_all(bind=engine)

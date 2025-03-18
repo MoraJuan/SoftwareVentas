@@ -19,5 +19,7 @@ class Category(Base):
     description = Column(String, nullable=True)
     active = Column(Boolean, nullable=False, default=True)
     
+    products = relationship('Product', back_populates='category')
+    
     def __repr__(self):
         return f"Categoría({self.name}, id={self.id})" 

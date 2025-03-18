@@ -45,7 +45,7 @@ def main(page: ft.Page):
         # page.client_storage.remove("token")
 
         # Crear conexión a la base de datos
-        engine = create_engine('sqlite:///ventas.db')
+        engine = create_engine('sqlite:///ventas_new.db')
         Session = sessionmaker(bind=engine)
         session = Session()
 

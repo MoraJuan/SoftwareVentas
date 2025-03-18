@@ -138,17 +138,20 @@ class SaleService:
         """Obtiene las ventas entre dos fechas con información del cliente"""
         try:
             sales = self.db.query(Sale)\
-                .join(Sale.customer)\
+                .options(
+                    joinedload(Sale.customer),
+                    joinedload(Sale.items).joinedload(SaleItem.product)
+                )\
                 .filter(
                     Sale.date >= from_date,
                     Sale.date <= to_date
-            ).all()
+                ).all()
             return sales
         except Exception as e:
             logging.error(f"Error fetching sales: {str(e)}")
             return []
 
-    def get_sales_by_category(self, category: str) -> List[Sale]:
+    def get_sales_by_category(self, category_id: int) -> List[Sale]:
         """Obtiene ventas que contienen productos de una categoría específica"""
         try:
             return self.db.query(Sale).join(
@@ -156,7 +159,7 @@ class SaleService:
             ).join(
                 Product, SaleItem.product_id == Product.id
             ).filter(
-                Product.category.ilike(f"%{category}%")
+                Product.category_id == category_id
             ).options(
                 joinedload(Sale.customer),
                 joinedload(Sale.items).joinedload(SaleItem.product)

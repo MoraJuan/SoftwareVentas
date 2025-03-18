@@ -3,8 +3,20 @@ from sqlalchemy.orm import sessionmaker
 import logging
 import os
 
-# Importar todos los modelos para que SQLAlchemy los registre
-from models import *
+# Importar los modelos en el orden correcto
+from database.connection import Base
+# Es importante importar Category antes que Product debido a la relación de clave foránea
+from models.Category import Category
+from models.Supplier import Supplier
+from models.User import User, UserRole
+from models.Customer import Customer
+from models.Product import Product
+from models.Sale import Sale
+from models.SaleItem import SaleItem
+from models.Stock import Stock
+from models.CommercialInvoice import CommercialInvoice
+from models.Administrator import Administrator
+from models.Employee import Employee
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +28,6 @@ def init_database():
         engine = create_engine('sqlite:///ventas_new.db')
         
         # Crear todas las tablas
-        from database.connection import Base
         Base.metadata.create_all(engine)
         
         # Crear una sesión
@@ -52,60 +63,91 @@ def init_database():
             logger.info("El usuario administrador ya existe")
         
         # Crear cliente "Desconocido" por defecto
-        from models.Customer import Customer
         unknown_customer = session.query(Customer).filter_by(id=0).first()
         if not unknown_customer:
             unknown_customer = Customer(
                 id=0,
                 name="Desconocido",
-                email="desconocido@example.com"
+                email="desconocido@example.com",
+                address="Sin dirección",
+                phone="000-0000"
             )
             session.add(unknown_customer)
             session.commit()
             logger.info("Cliente 'Desconocido' creado con éxito")
         
         # Crear productos de prueba
-        from models.Product import Product
-        
         # Verificar si ya existen productos
         products_count = session.query(Product).count()
         if products_count == 0:
+            # Crear categorías de ejemplo
+            categories = {
+                "Computadoras": Category(name="Computadoras", description="Equipos de cómputo", active=True),
+                "Monitores": Category(name="Monitores", description="Pantallas y monitores", active=True),
+                "Periféricos": Category(name="Periféricos", description="Accesorios y periféricos", active=True),
+                "Impresoras": Category(name="Impresoras", description="Impresoras y escáneres", active=True)
+            }
+            
+            # Crear proveedor de ejemplo
+            supplier = Supplier(
+                name="TechStore",
+                email="info@techstore.com",
+                phone="123-456-7890",
+                address="Calle Principal 123"
+            )
+            
+            # Agregar categorías y proveedor
+            for category in categories.values():
+                session.add(category)
+            session.add(supplier)
+            session.flush()  # Para obtener los IDs
+            
             # Crear productos de ejemplo
             products = [
                 Product(
                     name="Laptop HP",
                     description="Laptop HP Pavilion 15.6 pulgadas",
-                    category="Computadoras",
+                    category_id=categories["Computadoras"].id,
                     price=899.99,
-                    stock=10
+                    stock=10,
+                    supplier_id=supplier.id,
+                    code="LAP-001"
                 ),
                 Product(
                     name="Monitor Dell",
                     description="Monitor Dell 24 pulgadas Full HD",
-                    category="Monitores",
+                    category_id=categories["Monitores"].id,
                     price=249.99,
-                    stock=15
+                    stock=15,
+                    supplier_id=supplier.id,
+                    code="MON-001"
                 ),
                 Product(
                     name="Teclado Logitech",
                     description="Teclado mecánico Logitech G Pro",
-                    category="Periféricos",
+                    category_id=categories["Periféricos"].id,
                     price=129.99,
-                    stock=20
+                    stock=20,
+                    supplier_id=supplier.id,
+                    code="TEC-001"
                 ),
                 Product(
                     name="Mouse Razer",
                     description="Mouse gaming Razer DeathAdder",
-                    category="Periféricos",
+                    category_id=categories["Periféricos"].id,
                     price=69.99,
-                    stock=25
+                    stock=25,
+                    supplier_id=supplier.id,
+                    code="MOU-001"
                 ),
                 Product(
                     name="Impresora Epson",
                     description="Impresora multifuncional Epson EcoTank",
-                    category="Impresoras",
+                    category_id=categories["Impresoras"].id,
                     price=349.99,
-                    stock=8
+                    stock=8,
+                    supplier_id=supplier.id,
+                    code="IMP-001"
                 )
             ]
             
@@ -114,10 +156,6 @@ def init_database():
             
             session.commit()
             logger.info(f"{len(products)} productos de prueba creados con éxito")
-        
-        # Cargar datos de ejemplo adicionales
-        from utils.load_sample_data import load_sample_data
-        load_sample_data(session)
         
         logger.info("Base de datos inicializada correctamente")
         

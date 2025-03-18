@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, CheckConstraint, Boolean, Date, Text
+from sqlalchemy import Column, Integer, String, Float, CheckConstraint, Boolean, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -22,15 +22,17 @@ class Product(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    category = Column(String, nullable=True)
+    category_id = Column(Integer, ForeignKey('category.id'), nullable=False)
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False)
     barcode = Column(String, nullable=True)
-    supplier = Column(String, nullable=True)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=False)
     code = Column(String, nullable=True)
     
     # Relaciones
     inventory_history = relationship('InventoryHistory', back_populates='product', cascade="all, delete-orphan", lazy="dynamic")
+    category = relationship('Category', back_populates='products')
+    supplier = relationship('Supplier', back_populates='products')
     
     __table_args__ = (
         CheckConstraint('price > 0', name='check_price_positive'),

@@ -266,7 +266,7 @@ class PageInventory(ft.View):
             elif self.sort_column_index == 2:  # Nombre
                 key_func = lambda p: p.name.lower() if p.name else ""
             elif self.sort_column_index == 3:  # Categoría
-                key_func = lambda p: (p.category or "").lower()
+                key_func = lambda p: (p.category.name.lower() if p.category and hasattr(p.category, 'name') else "")
             elif self.sort_column_index == 4:  # Stock
                 key_func = lambda p: p.stock or 0
             elif self.sort_column_index == 5:  # Precio

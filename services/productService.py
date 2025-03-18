@@ -26,23 +26,23 @@ class ProductService:
         """Obtiene productos por su nombre"""
         return self.db.query(Product).filter(Product.name.ilike(f"%{name}%")).all()
 
-    def get_products_by_category(self, category: str) -> List[Product]:
+    def get_products_by_category(self, category_id: int) -> List[Product]:
         """Obtiene productos por su categoría"""
-        return self.db.query(Product).filter(Product.category.ilike(f"%{category}%")).all()
+        return self.db.query(Product).filter(Product.category_id == category_id).all()
 
     def get_products_by_price_range(self, min_price: float, max_price: float) -> List[Product]:
         """Obtiene productos por rango de precio"""
         return self.db.query(Product).filter(Product.price >= min_price, Product.price <= max_price).all()
 
     def search_products(self, search_term: str) -> List[Product]:
-        """Busca productos por nombre, descripción o categoría"""
+        """Busca productos por nombre, descripción o código"""
         if not search_term:
             return self.get_all_products()
         
         return self.db.query(Product).filter(
             (Product.name.ilike(f"%{search_term}%")) |
             (Product.description.ilike(f"%{search_term}%")) |
-            (Product.category.ilike(f"%{search_term}%"))
+            (Product.code.ilike(f"%{search_term}%"))
         ).all()
 
     def get_category_name_by_id(self, category_id: str) -> Optional[str]:
