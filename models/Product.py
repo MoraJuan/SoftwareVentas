@@ -13,6 +13,9 @@ class Product(Base):
         category (str): Categoría del producto
         price (float): Precio del producto
         stock (int): Cantidad disponible en inventario
+        barcode (str): Código de barras del producto
+        supplier (str): Proveedor del producto
+        code (str): Código interno del producto
     """
     __tablename__ = 'product'
     
@@ -22,6 +25,9 @@ class Product(Base):
     category = Column(String, nullable=True)
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False)
+    barcode = Column(String, nullable=True)
+    supplier = Column(String, nullable=True)
+    code = Column(String, nullable=True)
     
     # Relaciones
     inventory_history = relationship('InventoryHistory', back_populates='product', cascade="all, delete-orphan", lazy="dynamic")

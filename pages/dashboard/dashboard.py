@@ -291,6 +291,13 @@ class DashboardView(ft.View):
                             try:
                                 if hasattr(item, 'product') and item.product is not None and hasattr(item.product, 'category') and item.product.category:
                                     category = item.product.category
+                                    
+                                    # Verificar si la categoría es un ID numérico y convertirla a nombre
+                                    if str(category).isdigit():
+                                        category_name = self.product_service.get_category_name_by_id(category)
+                                        if category_name:
+                                            category = category_name
+                                    
                                     # Verificar si el item tiene el atributo subtotal
                                     if hasattr(item, 'subtotal') and item.subtotal is not None:
                                         category_sales[category] += item.subtotal
@@ -552,6 +559,33 @@ class DashboardView(ft.View):
 
     def build_activity_section(self):
         try:
+            # Crear contenedor con pestañas para actividad reciente
+            tabs = ft.Tabs(
+                selected_index=0,
+                animation_duration=300,
+                tabs=[
+                    ft.Tab(
+                        text="Ventas Recientes",
+                        icon=ft.icons.SHOPPING_CART,
+                        content=self.build_recent_sales_section()
+                    ),
+                    ft.Tab(
+                        text="Inventario Reciente",
+                        icon=ft.icons.INVENTORY,
+                        content=self.build_recent_inventory_section()
+                    ),
+                ],
+                expand=1
+            )
+            
+            return tabs
+            
+        except Exception as e:
+            logging.error(f"Error construyendo sección de actividad: {str(e)}")
+            return ft.Text(f"Error: {str(e)}", color=ft.colors.ERROR)
+            
+    def build_recent_sales_section(self):
+        try:
             # Obtener datos reales de actividad reciente
             # Obtener fecha actual y fecha de hace 30 días
             today = datetime.now()
@@ -566,59 +600,253 @@ class DashboardView(ft.View):
             # Limitar a las 10 actividades más recientes
             recent_sales = recent_sales[:10]
             
-            # Crear lista de actividades
-            activities = []
+            # Crear contenedor principal
+            content = ft.Column(
+                spacing=10,
+                scroll=ft.ScrollMode.AUTO,
+                height=400
+            )
             
+            # Si no hay ventas, mostrar mensaje
+            if not recent_sales:
+                content.controls.append(
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column([
+                                ft.Icon(
+                                    name=ft.icons.INFO,
+                                    color=ft.colors.PRIMARY,
+                                    size=50
+                                ),
+                                ft.Text(
+                                    "No hay ventas recientes",
+                                    size=16,
+                                    weight=ft.FontWeight.BOLD,
+                                    color=ft.colors.ON_SURFACE,
+                                    text_align=ft.TextAlign.CENTER
+                                ),
+                                ft.Text(
+                                    "Las ventas recientes se mostrarán aquí",
+                                    size=14,
+                                    color=ft.colors.ON_SURFACE_VARIANT,
+                                    text_align=ft.TextAlign.CENTER
+                                )
+                            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                            padding=20,
+                            alignment=ft.alignment.center
+                        ),
+                        elevation=0
+                    )
+                )
+                return content
+            
+            # Para cada venta, crear una tarjeta expandible
             for sale in recent_sales:
                 # Formatear fecha
                 date_str = sale.date.strftime("%d/%m/%Y %H:%M")
                 
-                # Crear descripción de la venta
-                activity = f"Venta #{sale.id} por ${sale.total_amount:.2f}"
-                
                 # Determinar cliente
                 customer_name = sale.customer.name if sale.customer else "Cliente no registrado"
+                
+                # Crear tabla de productos
+                products_table = ft.DataTable(
+                    columns=[
+                        ft.DataColumn(ft.Text("Producto")),
+                        ft.DataColumn(ft.Text("Cantidad")),
+                        ft.DataColumn(ft.Text("Precio")),
+                        ft.DataColumn(ft.Text("Subtotal"))
+                    ],
+                    rows=[]
+                )
+                
+                # Para cada item de la venta, añadir una fila a la tabla
+                for item in sale.items:
+                    products_table.rows.append(
+                        ft.DataRow(
+                            cells=[
+                                ft.DataCell(
+                                    ft.Text(item.product.name if item.product else "Producto eliminado")
+                                ),
+                                ft.DataCell(
+                                    ft.Text(str(item.quantity))
+                                ),
+                                ft.DataCell(
+                                    ft.Text(f"${item.unit_price:.2f}")
+                                ),
+                                ft.DataCell(
+                                    ft.Text(f"${item.subtotal:.2f}")
+                                )
+                            ]
+                        )
+                    )
+                
+                # Crear una tarjeta expandible para cada venta
+                sale_card = ft.Card(
+                    content=ft.Column([
+                        # Encabezado - Siempre visible
+                        ft.ListTile(
+                            leading=ft.Container(
+                                content=ft.Icon(ft.icons.SHOPPING_CART, color=ft.colors.ON_INVERSE_SURFACE),
+                                bgcolor=ft.colors.PRIMARY,
+                                border_radius=8,
+                                padding=8
+                            ),
+                            title=ft.Text(
+                                f"Venta #{sale.id} por ${sale.total_amount:.2f}",
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.colors.ON_SURFACE
+                            ),
+                            subtitle=ft.Column([
+                                ft.Text(f"Cliente: {customer_name}", color=ft.colors.ON_SURFACE_VARIANT),
+                                ft.Text(f"Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT, size=12)
+                            ], spacing=2, tight=True),
+                            trailing=ft.IconButton(
+                                icon=ft.icons.EXPAND_MORE,
+                                tooltip="Ver detalles",
+                                on_click=lambda e, s=sale.id: self.toggle_sale_details(e, s)
+                            )
+                        ),
+                        
+                        # Contenedor para detalles - Inicialmente oculto
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Divider(),
+                                ft.Text("Productos:", weight=ft.FontWeight.BOLD),
+                                products_table,
+                                ft.Row([
+                                    ft.Container(expand=True),
+                                    ft.FilledButton(
+                                        "Ver detalles",
+                                        icon=ft.icons.VISIBILITY,
+                                        on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
+                                    )
+                                ], alignment=ft.MainAxisAlignment.END)
+                            ]),
+                            padding=10,
+                            visible=False,
+                            # Usaremos la key para identificar este contenedor
+                            key=f"sale_details_{sale.id}"
+                        )
+                    ]),
+                    elevation=2,
+                    margin=ft.margin.only(bottom=10)
+                )
+                
+                # Añadir la tarjeta al contenedor principal
+                content.controls.append(sale_card)
+            
+            return content
+            
+        except Exception as e:
+            logging.error(f"Error construyendo sección de ventas recientes: {str(e)}")
+            return ft.Text(f"Error: {str(e)}", color=ft.colors.ERROR)
+            
+    def build_recent_inventory_section(self):
+        try:
+            # Obtener cambios recientes en el inventario
+            inventory_changes = self.product_service.inventory_history_service.get_recent_history(limit=10)
+            
+            # Crear lista de actividades
+            activities = []
+            
+            for change in inventory_changes:
+                # Formatear fecha
+                date_str = change.date.strftime("%d/%m/%Y %H:%M")
+                
+                # Determinar ícono y color según el tipo de cambio
+                icon_name = ft.icons.ARROW_UPWARD
+                icon_color = ft.colors.GREEN
+                bg_color = ft.colors.GREEN
+                
+                if change.change_type == "salida":
+                    icon_name = ft.icons.ARROW_DOWNWARD
+                    icon_color = ft.colors.RED
+                    bg_color = ft.colors.RED
+                elif change.change_type == "ajuste":
+                    icon_name = ft.icons.SYNC
+                    icon_color = ft.colors.BLUE
+                    bg_color = ft.colors.BLUE
+                
+                # Obtener nombre del producto
+                product_name = "Producto no disponible"
+                if change.product:
+                    product_name = change.product.name
+                
+                # Crear descripción del cambio
+                if change.change_type == "entrada":
+                    activity = f"Entrada de {abs(change.change_amount)} unidades"
+                elif change.change_type == "salida":
+                    activity = f"Salida de {abs(change.change_amount)} unidades"
+                else:
+                    activity = f"Ajuste de {change.previous_stock} → {change.new_stock} unidades"
                 
                 # Crear elemento de lista
                 activities.append(
                     ft.ListTile(
-                        leading=ft.Icon(ft.icons.SHOPPING_CART, color=ft.colors.GREEN),
+                        leading=ft.Container(
+                            content=ft.Icon(icon_name, color=ft.colors.ON_INVERSE_SURFACE),
+                            bgcolor=bg_color,
+                            border_radius=8,
+                            padding=8
+                        ),
                         title=ft.Text(activity, color=ft.colors.ON_SURFACE),
-                        subtitle=ft.Text(f"Cliente: {customer_name} | Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT),
+                        subtitle=ft.Column([
+                            ft.Text(f"Producto: {product_name}", color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text(f"Motivo: {change.change_reason or 'No especificado'}", color=ft.colors.ON_SURFACE_VARIANT, overflow=ft.TextOverflow.ELLIPSIS),
+                            ft.Text(f"Fecha: {date_str}", color=ft.colors.ON_SURFACE_VARIANT, size=12)
+                        ], spacing=2, tight=True),
                         trailing=ft.IconButton(
                             icon=ft.icons.VISIBILITY,
                             icon_color=ft.colors.ON_SURFACE_VARIANT,
                             tooltip="Ver detalles",
-                            on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
+                            on_click=lambda _, p=change.product_id: self.page.go(f"/historial_inventario?product_id={p}")
                         )
                     )
                 )
             
-            # Si no hay actividades recientes, mostrar mensaje
+            # Si no hay cambios recientes, mostrar mensaje
             if not activities:
                 activities.append(
                     ft.ListTile(
-                        leading=ft.Icon(ft.icons.INFO, color=ft.colors.BLUE),
-                        title=ft.Text("No hay actividad reciente", color=ft.colors.ON_SURFACE),
-                        subtitle=ft.Text("No se han registrado ventas en los últimos 30 días", color=ft.colors.ON_SURFACE_VARIANT)
+                        leading=ft.Icon(ft.icons.INFO, color=ft.colors.PRIMARY),
+                        title=ft.Text("No hay cambios recientes en el inventario", color=ft.colors.ON_SURFACE),
+                        subtitle=ft.Text("Los cambios en el inventario se mostrarán aquí", color=ft.colors.ON_SURFACE_VARIANT)
                     )
                 )
             
-            return ft.Column([
-                ft.Text(
-                    "Actividad Reciente",
-                    size=18,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.colors.ON_SURFACE
-                ),
-                ft.Card(
-                    content=ft.Column(activities)
-                )
-            ], spacing=10)
+            return ft.Column(
+                controls=activities,
+                scroll=ft.ScrollMode.AUTO,
+                spacing=2,
+                height=400
+            )
             
         except Exception as e:
-            logging.error(f"Error construyendo sección de actividad: {str(e)}")
+            logging.error(f"Error construyendo sección de inventario reciente: {str(e)}")
             return ft.Text(f"Error: {str(e)}", color=ft.colors.ERROR)
+
+    def toggle_sale_details(self, e, sale_id):
+        """Alterna la visibilidad de los detalles de una venta"""
+        try:
+            # Buscar el contenedor de detalles por su key
+            details_key = f"sale_details_{sale_id}"
+            for control in self.controls[0].content.controls[0].content.controls[1].content.tabs[0].content.controls:
+                if isinstance(control, ft.Card):
+                    for subcontrol in control.content.controls:
+                        if hasattr(subcontrol, 'key') and subcontrol.key == details_key:
+                            # Cambiar la visibilidad
+                            subcontrol.visible = not subcontrol.visible
+                            # Cambiar el ícono si está visible o no
+                            if control.content.controls[0].trailing:
+                                if subcontrol.visible:
+                                    control.content.controls[0].trailing.icon = ft.icons.EXPAND_LESS
+                                else:
+                                    control.content.controls[0].trailing.icon = ft.icons.EXPAND_MORE
+                            # Actualizar UI
+                            self.update()
+                            return
+        except Exception as e:
+            logging.error(f"Error al alternar detalles de venta: {str(e)}")
 
     def handle_logout(self, e):
         try:

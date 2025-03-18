@@ -9,7 +9,7 @@ load_dotenv()
 Base = declarative_base()
 
 # Crear el motor de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas_new.db")
 engine = create_engine(DATABASE_URL, echo=True)
 
 # Configurar la sesión
@@ -28,6 +28,7 @@ def init_db():
     from models.CommercialInvoice import CommercialInvoice
     from models.Administrator import Administrator
     from models.Employee import Employee
+    from models.Category import Category
     
     # Crear todas las tablas
     Base.metadata.create_all(bind=engine)

@@ -17,6 +17,10 @@ class SupplierService:
         """Obtiene un proveedor por su ID"""
         return self.db.query(Supplier).filter(Supplier.id == supplier_id).first()
 
+    def get_supplier_by_email(self, email: str) -> Optional[Supplier]:
+        """Obtiene un proveedor por su correo electrónico"""
+        return self.db.query(Supplier).filter(Supplier.email == email).first()
+
     def create_supplier(self, supplier_data: dict) -> Supplier:
         """Crea un nuevo proveedor"""
         supplier = Supplier(**supplier_data)

@@ -49,19 +49,19 @@ class PageInventory(ft.View):
             inventory_actions = ft.Container(
                 content=ft.Row([
                     ft.FilledButton(
-                        text="Gestionar Inventario",
-                        icon=ft.icons.INVENTORY,
-                        on_click=lambda _: self.page.go("/gestionar_inventario")
+                        text="Agregar/Editar Producto",
+                        icon=ft.icons.ADD,
+                        on_click=lambda _: self.page.go("/agregar_producto")
+                    ),
+                    ft.FilledTonalButton(
+                        text="Gestionar Categorías",
+                        icon=ft.icons.CATEGORY,
+                        on_click=lambda _: self.page.go("/categorias")
                     ),
                     ft.FilledTonalButton(
                         text="Historial de Inventario",
                         icon=ft.icons.HISTORY,
                         on_click=lambda _: self.page.go("/historial_inventario")
-                    ),
-                    ft.OutlinedButton(
-                        text="Agregar Producto",
-                        icon=ft.icons.ADD,
-                        on_click=lambda _: self.page.go("/agregar_producto")
                     )
                 ]),
                 padding=ft.padding.only(bottom=20)
@@ -156,6 +156,14 @@ class PageInventory(ft.View):
                 alignment=ft.alignment.center
             )
             
+            # Crear barra de progreso
+            self.progress_bar = ft.ProgressBar(
+                width=500,
+                color=ft.colors.PRIMARY,
+                bgcolor=ft.colors.SURFACE_VARIANT,
+                visible=False
+            )
+            
             # Contenedor de paginación simplificado
             self.pagination_container = ft.Container(
                 content=ft.Column([
@@ -182,6 +190,7 @@ class PageInventory(ft.View):
                         icon_color=ft.colors.PRIMARY
                     )
                 ]),
+                self.progress_bar,
                 ft.Text(
                     "Productos en Inventario",
                     size=18,
@@ -253,18 +262,18 @@ class PageInventory(ft.View):
             if self.sort_column_index == 0:  # ID
                 key_func = lambda p: p.id
             elif self.sort_column_index == 1:  # Código
-                key_func = lambda p: getattr(p, 'code', '')
+                key_func = lambda p: p.code.lower() if p.code else ""
             elif self.sort_column_index == 2:  # Nombre
-                key_func = lambda p: p.name.lower()
+                key_func = lambda p: p.name.lower() if p.name else ""
             elif self.sort_column_index == 3:  # Categoría
                 key_func = lambda p: (p.category or "").lower()
             elif self.sort_column_index == 4:  # Stock
-                key_func = lambda p: p.stock
+                key_func = lambda p: p.stock or 0
             elif self.sort_column_index == 5:  # Precio
-                key_func = lambda p: p.price
+                key_func = lambda p: p.price or 0
             else:
                 # Por defecto ordenar por nombre
-                key_func = lambda p: p.name.lower()
+                key_func = lambda p: p.name.lower() if p.name else ""
             
             # Ordenar la lista de productos
             self.filtered_products.sort(key=key_func, reverse=not self.sort_ascending)
@@ -312,13 +321,28 @@ class PageInventory(ft.View):
                 # Formatear stock
                 stock_color = ft.colors.ERROR if product.stock <= 0 else ft.colors.ON_SURFACE
                 
+                # Verificar si la categoría es un número y convertirla a nombre
+                category_display = "Sin categoría"
+                if product.category:
+                    if str(product.category).isdigit():
+                        # Es un ID de categoría, obtener el nombre
+                        category_name = self.product_service.get_category_name_by_id(product.category)
+                        if category_name:
+                            category_display = category_name
+                        else:
+                            # Si no se puede obtener el nombre, mostrar la categoría tal cual
+                            category_display = product.category
+                    else:
+                        # Ya es un nombre o no es un ID, mostrar como está
+                        category_display = product.category
+                
                 # Crear fila
                 row = ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(str(product.id), color=ft.colors.ON_SURFACE)),
                         ft.DataCell(ft.Text(getattr(product, 'code', 'N/A'), color=ft.colors.ON_SURFACE)),
                         ft.DataCell(ft.Text(product.name, color=ft.colors.ON_SURFACE)),
-                        ft.DataCell(ft.Text(product.category or "Sin categoría", color=ft.colors.ON_SURFACE)),
+                        ft.DataCell(ft.Text(category_display, color=ft.colors.ON_SURFACE)),
                         ft.DataCell(ft.Text(str(product.stock), color=stock_color)),
                         ft.DataCell(ft.Text(f"${product.price:.2f}", color=ft.colors.ON_SURFACE)),
                         ft.DataCell(ft.Text("Disponible", color=ft.colors.GREEN)),
@@ -477,38 +501,47 @@ class PageInventory(ft.View):
             return ft.Text("Error al cargar la tabla de inventario", color=ft.colors.ERROR)
             
     def load_inventory(self, e=None):
-        """Carga los productos en la tabla de inventario"""
+        """Carga los datos de inventario"""
         try:
+            # Mostrar barra de progreso durante la carga
+            self.progress_bar.visible = True
+            self.update()
+            
+            # Actualizar categorías numéricas en productos existentes
+            self.product_service.update_all_numeric_categories()
+            
             # Obtener todos los productos
             self.all_products = self.product_service.get_all_products()
             
-            # Inicializar productos filtrados con todos los productos
+            # Inicializar los productos filtrados con todos los productos
             self.filtered_products = self.all_products.copy()
             
-            # Aplicar ordenamiento actual
+            # Ordenar según la configuración actual
             self.sort_products()
             
-            # Volver a la primera página cuando se cargan nuevos datos
+            # Volver a la primera página
             self.current_page = 1
             
-            # Reconstruir la tabla para actualizar los iconos de ordenamiento
-            self.inventory_table = self.build_inventory_table()
-            self.table_container.content = self.inventory_table
-            
-            # Actualizar la tabla con los productos de la página actual
+            # Actualizar tabla con productos paginados
             self.update_table_with_products(self.get_current_page_products())
             
-            # Limpiar campo de búsqueda
-            if e is not None:  # Solo si se llama desde el botón de actualizar
-                self.search_field.value = ""
-                self.update()
+            # Actualizar contador de productos
+            total_products = len(self.all_products)
+            self.total_products_text.value = f"Total: {total_products} productos"
             
-            # Depurar estructura de controles de paginación
-            self.debug_pagination_controls()
+            # Actualizar paginación
+            self.update_pagination()
+            
+            # Ocultar barra de progreso
+            self.progress_bar.visible = False
+            self.update()
             
         except Exception as e:
             logging.error(f"Error al cargar inventario: {str(e)}")
             show_error_message(self.page, f"Error al cargar inventario: {str(e)}")
+            # Ocultar barra de progreso en caso de error
+            self.progress_bar.visible = False
+            self.update()
             
     def edit_product(self, product):
         """Navega a la página de edición de producto"""
@@ -654,4 +687,24 @@ class PageInventory(ft.View):
                 
             logging.info("=== Fin de depuración ===")
         except Exception as e:
-            logging.error(f"Error al depurar controles de paginación: {str(e)}") 
+            logging.error(f"Error al depurar controles de paginación: {str(e)}")
+
+    def update_pagination(self):
+        """Actualiza la información y controles de paginación"""
+        try:
+            total_pages = self.get_total_pages()
+            self.page_info_text.value = f"Página {self.current_page} de {total_pages}"
+            self.total_products_text.value = f"Total: {len(self.filtered_products)} productos"
+            
+            # Actualizar estado de los botones de paginación
+            self.btn_first_page.disabled = self.current_page == 1
+            self.btn_prev_page.disabled = self.current_page == 1
+            self.btn_next_page.disabled = self.current_page == total_pages
+            self.btn_last_page.disabled = self.current_page == total_pages
+            
+            # Actualizar la tabla con los productos de la página actual
+            self.update_table_with_products(self.get_current_page_products())
+            
+            self.update()
+        except Exception as e:
+            logging.error(f"Error al actualizar paginación: {str(e)}") 

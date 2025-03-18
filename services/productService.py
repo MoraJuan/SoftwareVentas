@@ -18,6 +18,10 @@ class ProductService:
         """Obtiene un producto por su ID"""
         return self.db.query(Product).filter(Product.id == product_id).first()
 
+    def get_product_by_code(self, code: str) -> Optional[Product]:
+        """Obtiene un producto por su código"""
+        return self.db.query(Product).filter(Product.code == code).first()
+
     def get_products_by_name(self, name: str) -> List[Product]:
         """Obtiene productos por su nombre"""
         return self.db.query(Product).filter(Product.name.ilike(f"%{name}%")).all()
@@ -41,9 +45,31 @@ class ProductService:
             (Product.category.ilike(f"%{search_term}%"))
         ).all()
 
+    def get_category_name_by_id(self, category_id: str) -> Optional[str]:
+        """Obtiene el nombre de una categoría por su ID"""
+        try:
+            if not category_id or not str(category_id).isdigit() or category_id == "0":
+                return None
+                
+            # Importar CategoryService aquí para evitar importación circular
+            from services.categoryService import CategoryService
+            category_service = CategoryService(self.db)
+            
+            category = category_service.get_category_by_id(int(category_id))
+            return category.name if category else None
+        except Exception as e:
+            logging.error(f"Error al obtener nombre de categoría: {str(e)}")
+            return None
+            
     def create_product(self, product_data: dict) -> Product:
         """Crea un nuevo producto"""
         try:
+            # Si la categoría es un ID, convertirla al nombre
+            if "category" in product_data and product_data["category"] and str(product_data["category"]).isdigit() and product_data["category"] != "0":
+                category_name = self.get_category_name_by_id(product_data["category"])
+                if category_name:
+                    product_data["category"] = category_name
+            
             product = Product(**product_data)
             self.db.add(product)
             self.db.commit()
@@ -71,6 +97,12 @@ class ProductService:
             if product:
                 # Verificar si hay cambio en el stock
                 old_stock = product.stock
+                
+                # Si la categoría es un ID, convertirla al nombre
+                if "category" in product_data and product_data["category"] and str(product_data["category"]).isdigit() and product_data["category"] != "0":
+                    category_name = self.get_category_name_by_id(product_data["category"])
+                    if category_name:
+                        product_data["category"] = category_name
                 
                 # Actualizar atributos
                 for key, value in product_data.items():
@@ -341,3 +373,40 @@ class ProductService:
         except Exception as e:
             logging.error(f"Error al obtener historial del producto: {str(e)}")
             raise
+
+    def update_all_numeric_categories(self) -> int:
+        """
+        Actualiza todas las categorías numéricas en los productos existentes, 
+        convirtiendo los IDs de categoría a nombres de categoría.
+        
+        Returns:
+            Número de productos actualizados
+        """
+        try:
+            # Obtener todos los productos
+            all_products = self.get_all_products()
+            count_updated = 0
+            
+            # Importar CategoryService aquí para evitar importación circular
+            from services.categoryService import CategoryService
+            category_service = CategoryService(self.db)
+            
+            for product in all_products:
+                if product.category and str(product.category).isdigit():
+                    # Encontrar la categoría correspondiente
+                    category = category_service.get_category_by_id(int(product.category))
+                    if category:
+                        # Actualizar el producto con el nombre de la categoría
+                        product.category = category.name
+                        count_updated += 1
+            
+            # Guardar cambios
+            if count_updated > 0:
+                self.db.commit()
+                
+            return count_updated
+            
+        except Exception as e:
+            self.db.rollback()
+            logging.error(f"Error al actualizar categorías numéricas: {str(e)}")
+            return 0

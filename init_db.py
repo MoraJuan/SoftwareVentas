@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def init_database():
     try:
         # Crear el motor de base de datos
-        engine = create_engine('sqlite:///ventas.db')
+        engine = create_engine('sqlite:///ventas_new.db')
         
         # Crear todas las tablas
         from database.connection import Base
@@ -115,6 +115,10 @@ def init_database():
             session.commit()
             logger.info(f"{len(products)} productos de prueba creados con éxito")
         
+        # Cargar datos de ejemplo adicionales
+        from utils.load_sample_data import load_sample_data
+        load_sample_data(session)
+        
         logger.info("Base de datos inicializada correctamente")
         
     except Exception as e:
@@ -123,9 +127,9 @@ def init_database():
 
 if __name__ == "__main__":
     # Eliminar la base de datos si ya existe
-    if os.path.exists("ventas.db"):
-        os.remove("ventas.db")
+    if os.path.exists("ventas_new.db"):
+        os.remove("ventas_new.db")
         logger.info("Base de datos anterior eliminada")
     
     # Inicializar la base de datos
-    init_database() 
+    init_database()

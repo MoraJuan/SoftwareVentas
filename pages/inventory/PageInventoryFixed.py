@@ -257,18 +257,18 @@ class PageInventory(ft.View):
             if self.sort_column_index == 0:  # ID
                 key_func = lambda p: p.id
             elif self.sort_column_index == 1:  # Código
-                key_func = lambda p: getattr(p, 'code', '')
+                key_func = lambda p: p.code.lower() if p.code else ""
             elif self.sort_column_index == 2:  # Nombre
-                key_func = lambda p: p.name.lower()
+                key_func = lambda p: p.name.lower() if p.name else ""
             elif self.sort_column_index == 3:  # Categoría
                 key_func = lambda p: (p.category or "").lower()
             elif self.sort_column_index == 4:  # Stock
-                key_func = lambda p: p.stock
+                key_func = lambda p: p.stock or 0
             elif self.sort_column_index == 5:  # Precio
-                key_func = lambda p: p.price
+                key_func = lambda p: p.price or 0
             else:
                 # Por defecto ordenar por nombre
-                key_func = lambda p: p.name.lower()
+                key_func = lambda p: p.name.lower() if p.name else ""
             
             # Ordenar la lista de productos
             self.filtered_products.sort(key=key_func, reverse=not self.sort_ascending)
