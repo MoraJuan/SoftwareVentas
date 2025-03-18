@@ -11,7 +11,7 @@ def create_inventory_history_table():
     """Crea la tabla de historial de inventario directamente con SQLite"""
     try:
         # Conectar a la base de datos
-        conn = sqlite3.connect('ventas.db')
+        conn = sqlite3.connect('ventas_new.db')
         cursor = conn.cursor()
         
         # Verificar si la tabla ya existe

@@ -18,7 +18,7 @@ def setup_db_path():
         from models.Category import Category
         from database.connection import Base
         
-        return 'sqlite:///ventas.db'
+        return 'sqlite:///ventas_new.db'
     except Exception as e:
         logger.error(f"Error al configurar ruta de la base de datos: {str(e)}")
         sys.exit(1)
