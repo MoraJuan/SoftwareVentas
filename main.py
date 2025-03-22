@@ -10,7 +10,7 @@ from pages.auth.register import RegisterView
 from pages import HomeView
 
 #* Configurar logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 #* Rutas públicas que no requieren autenticación

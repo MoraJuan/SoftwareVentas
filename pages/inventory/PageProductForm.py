@@ -55,6 +55,13 @@ class PageProductForm(ft.UserControl):
             self.categories = self.category_service.get_active_categories() or []
             self.subcategories = []
             self.suppliers = self.supplier_service.get_all_suppliers() or []
+            
+            # Verificar que el servicio de subcategorías funcione correctamente
+            logging.info("Verificando servicio de subcategorías...")
+            if self.categories and len(self.categories) > 0:
+                test_category_id = self.categories[0].id
+                test_subcategories = self.subcategory_service.get_active_subcategories(category_id=test_category_id)
+                logging.info(f"Subcategorías de prueba para categoría {test_category_id}: {test_subcategories}")
         except Exception as e:
             logging.error(f"Error al inicializar servicios: {str(e)}")
             self.categories = []
@@ -266,14 +273,15 @@ class PageProductForm(ft.UserControl):
             category_options.append(ft.dropdown.Option(
                 str(category.id), category.name))
 
+        # Implementar el manejo de eventos de dos formas para garantizar que funcione
         self.category_input = ft.Dropdown(
             label="Categoría",
             width=field_width,
             options=category_options,
             value="0",  # Valor por defecto
-            on_change=self.update_subcategories  # Añadir evento para actualizar subcategorías
+            on_change=self._on_category_change  # Usar directamente la función de callback
         )
-
+        
         # Dropdown para subcategorías
         subcategory_options = [ft.dropdown.Option("0", "Seleccione una subcategoría")]
         
@@ -306,7 +314,7 @@ class PageProductForm(ft.UserControl):
             text=button_text,
             icon=ft.icons.CATEGORY,
             tooltip="Gestionar Categorías" if self.is_mobile else None,
-            on_click=lambda _: self.page.go("/categorias")
+            on_click=lambda _: self.show_categories()
         )
 
         # Botón para gestionar proveedores - adaptado para móvil
@@ -315,7 +323,7 @@ class PageProductForm(ft.UserControl):
             text=button_text_supplier,
             icon=ft.icons.BUSINESS,
             tooltip="Gestionar Proveedores" if self.is_mobile else None,
-            on_click=lambda _: self.page.go("/proveedores")
+            on_click=lambda _: self.show_suppliers()
         )
 
         # Otros campos
@@ -453,67 +461,118 @@ class PageProductForm(ft.UserControl):
         
         return self.form_container
     
-    def update_subcategories(self, e):
-        """Actualiza las opciones de subcategorías según la categoría seleccionada."""
+    def _on_category_change(self, e):
+        """
+        Método intermediario para depurar el evento on_change del dropdown de categoría
+        """
+        logging.info("Evento on_change de categoría detectado")
+        logging.info(f"Valor seleccionado: {self.category_input.value}")
+        
         try:
-            # Verificar si el componente está inicializado
-            if not hasattr(self, 'category_input') or not self.category_input:
-                logging.warning("category_input no está inicializado")
-                return
-                
-            if not hasattr(self, 'subcategory_input') or not self.subcategory_input:
-                logging.warning("subcategory_input no está inicializado")
-                return
-                
-            # Obtener el ID de la categoría seleccionada
-            category_id = 0
-            try:
-                category_id = int(self.category_input.value or 0)
-            except (ValueError, TypeError) as e:
-                logging.error(f"Error al convertir category_id: {str(e)}")
-                category_id = 0
-                
-            logging.info(f"Actualizando subcategorías para categoría ID: {category_id}")
+            # Obtener el ID de categoría directamente sin depender del evento
+            category_id = int(self.category_input.value or 0)
+            logging.info(f"Forzando actualización para categoría ID: {category_id}")
             
-            # Inicializar las opciones con el valor por defecto
-            subcategory_options = [ft.dropdown.Option("0", "Seleccione una subcategoría")]
-            
+            # Forzar la carga de subcategorías
             if category_id > 0:
-                try:
-                    # Obtener las subcategorías activas para esta categoría
-                    logging.info(f"Consultando subcategorías para categoría ID: {category_id}")
-                    self.subcategories = self.subcategory_service.get_active_subcategories(category_id=category_id) or []
+                # Cargar subcategorías manualmente
+                subcategories = self.subcategory_service.get_active_subcategories(category_id=category_id)
+                logging.info(f"Subcategorías obtenidas manualmente: {subcategories}")
+                
+                # Actualizar las opciones del dropdown
+                if subcategories:
+                    # Crear un nuevo objeto de opciones
+                    subcategory_options = [ft.dropdown.Option("0", "Seleccione una subcategoría")]
+                    sorted_subcategories = sorted(subcategories, key=lambda sub: sub.name)
                     
-                    # Ordenar subcategorías por nombre
-                    if self.subcategories:
-                        sorted_subcategories = sorted(self.subcategories, key=lambda sub: sub.name)
-                        for subcategory in sorted_subcategories:
-                            subcategory_options.append(ft.dropdown.Option(
-                                str(subcategory.id), subcategory.name))
-                    else:
-                        logging.warning(f"No se encontraron subcategorías para la categoría ID: {category_id}")
-                        # Agregar una opción que indique que no hay subcategorías
+                    for subcategory in sorted_subcategories:
                         subcategory_options.append(ft.dropdown.Option(
-                            "-1", "No hay subcategorías disponibles"))
-                except Exception as e:
-                    logging.error(f"Error al consultar subcategorías: {str(e)}")
-                    subcategory_options.append(ft.dropdown.Option(
-                        "-1", "Error al cargar subcategorías"))
+                            str(subcategory.id), subcategory.name))
+                        logging.info(f"Añadida subcategoría: {subcategory.name} (ID: {subcategory.id})")
+                    
+                    # Actualizar el dropdown de subcategorías - reemplazando completamente las opciones
+                    self.subcategory_input.options.clear()
+                    for option in subcategory_options:
+                        self.subcategory_input.options.append(option)
+                    
+                    # Restablecer el valor
+                    self.subcategory_input.value = "0"
+                    
+                    # Almacenar las subcategorías
+                    self.subcategories = subcategories
+                else:
+                    # No hay subcategorías para esta categoría
+                    self.subcategory_input.options = [
+                        ft.dropdown.Option("0", "Seleccione una subcategoría"),
+                        ft.dropdown.Option("-1", "No hay subcategorías disponibles")
+                    ]
+                    self.subcategory_input.value = "0"
+                    self.subcategories = []
             else:
-                # Indicar que primero se debe seleccionar una categoría
-                subcategory_options = [ft.dropdown.Option("0", "Primero seleccione una categoría")]
+                # Categoría inválida o no seleccionada
+                self.subcategory_input.options = [ft.dropdown.Option("0", "Primero seleccione una categoría")]
+                self.subcategory_input.value = "0"
+                self.subcategories = []
             
-            # Actualizar las opciones y resetear el valor
-            self.subcategory_input.options = subcategory_options
-            self.subcategory_input.value = "0"
+            logging.info(f"Subcategorías actualizadas: {self.subcategories}")
             
-            # Actualizar la UI para mostrar los cambios
-            self.page.update()
-            
+            # Forzar la actualización de la UI - ESTO ES CRÍTICO
+            if self.page:
+                logging.info("Forzando actualización de UI después de cambio de categoría")
+                
+                # Forzar una actualización explícita del dropdown de subcategorías
+                self.subcategory_input.update()
+                
+                # Actualizar toda la página
+                self.page.update()
+                
+                # Verificar una segunda vez después de una breve pausa
+                self.page.run_task(self._verify_subcategories_update)
+                
+            else:
+                logging.error("No se puede actualizar la UI, self.page es None")
+                
         except Exception as e:
-            logging.error(f"Error al actualizar subcategorías: {str(e)}")
-            show_error_message(self.page, f"Error al cargar subcategorías: {str(e)}")
-            # Imprimir el stack trace para facilitar la depuración
+            logging.error(f"Error en _on_category_change: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            if self.page:
+                show_error_message(self.page, f"Error al actualizar subcategorías: {str(e)}")
+        
+    async def _verify_subcategories_update(self):
+        """Verifica que las subcategorías se hayan actualizado correctamente después de una breve pausa"""
+        import asyncio
+        try:
+            # Esperar un momento para que la UI se actualice
+            await asyncio.sleep(0.1)
+            
+            # Verificar si hay subcategorías y el dropdown está actualizado
+            logging.info("Verificando actualización de subcategorías...")
+            if self.subcategories and len(self.subcategories) > 0:
+                # Comprobar si el dropdown tiene las opciones correctas
+                dropdown_options_count = len(self.subcategory_input.options)
+                expected_count = len(self.subcategories) + 1  # +1 por la opción predeterminada
+                
+                logging.info(f"Opciones en dropdown: {dropdown_options_count}, Esperadas: {expected_count}")
+                
+                if dropdown_options_count != expected_count:
+                    logging.warning("¡Las opciones del dropdown no coinciden con las subcategorías! Forzando actualización...")
+                    
+                    # Recrear las opciones
+                    subcategory_options = [ft.dropdown.Option("0", "Seleccione una subcategoría")]
+                    for subcategory in self.subcategories:
+                        subcategory_options.append(ft.dropdown.Option(
+                            str(subcategory.id), subcategory.name))
+                    
+                    # Actualizar manualmente
+                    self.subcategory_input.options = subcategory_options
+                    self.subcategory_input.value = "0"
+                    
+                    # Forzar actualización
+                    self.subcategory_input.update()
+                    self.page.update()
+        except Exception as e:
+            logging.error(f"Error en _verify_subcategories_update: {str(e)}")
             import traceback
             logging.error(traceback.format_exc())
     
@@ -662,7 +721,7 @@ class PageProductForm(ft.UserControl):
                         if product.category_id:
                             self.category_input.value = str(product.category_id)
                             # Actualizar subcategorías después de establecer la categoría
-                            self.update_subcategories(None)
+                            self._on_category_change(None)
                         else:
                             # Si no es un ID, buscar la categoría por nombre o usar el valor por defecto
                             found = False
@@ -674,7 +733,7 @@ class PageProductForm(ft.UserControl):
                             if not found:
                                 self.category_input.value = "0"  # Valor por defecto si no se encuentra
                             # Actualizar subcategorías después de establecer la categoría
-                            self.update_subcategories(None)
+                            self._on_category_change(None)
                     
                     if hasattr(self, 'subcategory_input') and self.subcategory_input:
                         if product.subcategory_id:
@@ -706,3 +765,61 @@ class PageProductForm(ft.UserControl):
             logging.error(traceback.format_exc())
             show_error_message(
                 self.page, f"Error al cargar los datos del producto: {str(e)}")
+
+    # Métodos para navegar a categorías y proveedores
+    def show_categories(self, e=None):
+        """Muestra la página de categorías"""
+        try:
+            logging.info("Navegando a la página de categorías")
+            # Crear una instancia de la página de categorías
+            from pages.categories.PageCategory import PageCategory
+            categories_page = PageCategory(self.page, self.session)
+            
+            # Limpiar los controles actuales y mostrar la página de categorías
+            self.controls.clear()
+            self.controls.append(categories_page)
+            self.update()
+        except Exception as e:
+            logging.error(f"Error al mostrar la página de categorías: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            show_error_message(self.page, f"Error al mostrar la página de categorías: {str(e)}")
+    
+    def show_suppliers(self, e=None):
+        """Muestra la página de proveedores"""
+        try:
+            logging.info("Navegando a la página de proveedores")
+            # Usar la factory para crear la página de proveedores
+            from pages.supplier.page_factory import SupplierPageFactory
+            
+            # Crear una función de retorno para volver a esta página
+            def go_back_to_product_form():
+                self.controls.clear()
+                self.build_ui()
+                self.update()
+            
+            # Crear la página de proveedores con la función de retorno
+            suppliers_page = SupplierPageFactory.create_supplier_page(
+                self.page, 
+                self.session,
+                go_back_callback=go_back_to_product_form
+            )
+            
+            # Limpiar los controles actuales y mostrar la página de proveedores
+            self.controls.clear()
+            self.controls.append(suppliers_page)
+            self.update()
+        except Exception as e:
+            logging.error(f"Error al mostrar la página de proveedores: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            show_error_message(self.page, f"Error al mostrar la página de proveedores: {str(e)}")
+
+    # Implementar update_subcategories como wrapper para compatibilidad con código existente
+    def update_subcategories(self, e):
+        """
+        Método wrapper para mantener compatibilidad con posibles llamadas existentes.
+        Simplemente redirige a _on_category_change.
+        """
+        logging.info("Método update_subcategories llamado, redirigiendo a _on_category_change")
+        self._on_category_change(e)
