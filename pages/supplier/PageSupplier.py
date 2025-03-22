@@ -196,7 +196,12 @@ class PageSupplier(ft.UserControl):
         
         # Usar la factory para crear el formulario
         from pages.supplier.page_factory import SupplierPageFactory
-        supplier_form = SupplierPageFactory.create_supplier_form(self.page, self.session, edit_mode=True)
+        supplier_form = SupplierPageFactory.create_supplier_form(
+            self.page, 
+            self.session, 
+            edit_mode=True,
+            go_back_callback=self.go_back_callback  # Pasar el callback original
+        )
         
         self.controls.clear()
         self.controls.append(supplier_form)
@@ -205,7 +210,11 @@ class PageSupplier(ft.UserControl):
     def add_supplier(self):
         # Usar la factory para crear el formulario
         from pages.supplier.page_factory import SupplierPageFactory
-        supplier_form = SupplierPageFactory.create_supplier_form(self.page, self.session)
+        supplier_form = SupplierPageFactory.create_supplier_form(
+            self.page, 
+            self.session,
+            go_back_callback=self.go_back_callback  # Pasar el callback original
+        )
         
         self.controls.clear()
         self.controls.append(supplier_form)

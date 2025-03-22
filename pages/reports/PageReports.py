@@ -92,11 +92,15 @@ class PageReports(ft.UserControl):
             self.controls = [ft.Text(f"Error al cargar la página de reportes: {str(e)}", color=ft.colors.ERROR)]
 
     def show_suppliers(self):
+        # Marcar que estamos navegando desde Reports
+        self.page.current_view = 'reports'
         self.controls.clear()
         self.controls.append(PageSupplier(self.page, self.session, self.go_back))
         self.update()
 
     def show_customers(self):
+        # Marcar que estamos navegando desde Reports
+        self.page.current_view = 'reports'
         self.controls.clear()
         self.controls.append(PageCustomer(self.page, self.session, self.go_back))
         self.update()

@@ -14,12 +14,13 @@ class PageSales(ft.UserControl):
         self.session = session
         self.sale_service = SaleService(session)
         self.product_service = ProductService(session)
-        self.all_sales = []  # Lista para almacenar todas las ventas
-        self.filtered_sales = []  # Lista para almacenar ventas filtradas
-        self.sort_column_index = 0  # Por defecto ordenar por ID (índice 0)
-        self.sort_ascending = False  # Por defecto orden descendente
-        self.current_page = 1  # Página actual
-        self.sales_per_page = 10  # Ventas por página
+        self.all_sales = []
+        self.filtered_sales = []  
+        self.sort_column_index = 0  
+        self.sort_ascending = False  
+        self.current_page = 1 
+        self.sales_per_page = 10 
+        self.ventas_cargadas = False
         
         # Verificar que la página sea válida antes de acceder a su ancho
         if self.page is None:
@@ -32,11 +33,32 @@ class PageSales(ft.UserControl):
             # Configurar evento de resize solo si la página es válida
             self.page.on_resize = self.handle_resize
             
+            # Configurar evento para recargar ventas al regresar a esta vista
+            self.original_on_view_pop = self.page.on_view_pop
+            
+            def on_view_pop_handler(e):
+                logging.info("PageSales: detected view_pop event")
+                # Recargar ventas al volver a esta vista
+                self.ventas_cargadas = False  # Reiniciar bandera para permitir carga
+                self.load_sales()
+                
+                # Llamar al handler original si existe
+                if self.original_on_view_pop:
+                    self.original_on_view_pop(e)
+            
+            self.page.on_view_pop = on_view_pop_handler
+            
         # Construir la interfaz
         self.build_ui()
         
-        # Cargar las ventas automáticamente al inicializar
-        self.load_sales()
+        # Programar la carga de ventas para después de que se haya construido la interfaz
+        if self.page is not None:
+            logging.info("Programando carga inicial de ventas con retraso...")
+            import threading
+            # Usar un timer en lugar de page.after
+            threading.Timer(0.1, self.load_sales).start()
+        else:
+            logging.error("No se puede programar la carga de ventas: self.page es None")
 
     def handle_resize(self, e):
         """Maneja el evento de redimensionamiento de la ventana"""
@@ -279,6 +301,33 @@ class PageSales(ft.UserControl):
                 pagination
             ], spacing=20, expand=True)
             
+            # Crear botón flotante para cargar ventas (será visible solo si no se cargan automáticamente)
+            self.btn_float_load = ft.FloatingActionButton(
+                text="¡Cargar ventas!",
+                icon=ft.icons.REFRESH,
+                on_click=self.load_sales,
+                visible=False,  # Inicialmente invisible
+                bgcolor=ft.colors.ERROR_CONTAINER,
+                data="Pulse aquí para cargar las ventas", # Datos adicionales para identificar
+                tooltip="Haga clic para cargar las ventas recientes",
+                # extended=True # Mostrar texto y icono
+            )
+            
+            # Programar que se haga visible después de 3 segundos si no hay ventas
+            if hasattr(self, 'page') and self.page is not None:
+                def check_if_sales_loaded():
+                    if not hasattr(self, 'all_sales') or len(self.all_sales) == 0:
+                        logging.info("No se detectaron ventas cargadas, mostrando botón flotante")
+                        if hasattr(self, 'btn_float_load'):
+                            self.btn_float_load.visible = True
+                            # También mostrar un mensaje indicando el problema
+                            show_error_message(self.page, "No se pudieron cargar las ventas automáticamente. Haga clic en el botón rojo para cargarlas manualmente.")
+                            self.page.update()
+                
+                # Usar un timer en lugar de page.after
+                import threading
+                threading.Timer(3.0, check_if_sales_loaded).start()
+            
             # Contenido principal
             main_content = ft.Column([
                 header,
@@ -301,11 +350,12 @@ class PageSales(ft.UserControl):
                     scroll=ft.ScrollMode.AUTO,
                     expand=True,
                     alignment=ft.MainAxisAlignment.START
-                )
+                ),
+                self.btn_float_load  # Añadimos el botón flotante al final
             ]
             
             # Cargar datos
-            self.load_recent_sales()
+            
 
         except Exception as e:
             logging.error(f"Error construyendo UI: {str(e)}")
@@ -433,8 +483,23 @@ class PageSales(ft.UserControl):
                 border_radius=10
             )
             
-    def load_recent_sales(self):
+    def load_sales(self):
+        """Carga automáticamente las ventas al inicializar la página"""
         try:
+            logging.info("Cargando ventas automáticamente al iniciar...")
+            
+            # Marcar como cargadas para evitar duplicados
+            self.ventas_cargadas = True
+            
+            # Verificar que la tabla exista antes de cargar los datos
+            if not hasattr(self, 'sales_table') or self.sales_table is None:
+                logging.error("No se puede cargar ventas: sales_table no está inicializada")
+                # Programar otro intento en 500ms
+                if hasattr(self, 'page') and self.page is not None:
+                    import threading
+                    threading.Timer(0.5, self.load_sales).start()
+                return
+            
             # Obtener ventas de los últimos 30 días
             end_date = datetime.now()
             start_date = end_date - timedelta(days=30)
@@ -442,6 +507,13 @@ class PageSales(ft.UserControl):
             # Obtener ventas recientes
             try:
                 self.all_sales = self.sale_service.get_sales_between_dates(start_date, end_date)
+                logging.info(f"Se obtuvieron {len(self.all_sales)} ventas del servicio")
+                
+                # Ocultar el botón flotante si las ventas se cargaron correctamente
+                if hasattr(self, 'btn_float_load') and self.btn_float_load.visible:
+                    self.btn_float_load.visible = False
+                    if hasattr(self, 'page') and self.page is not None:
+                        self.page.update()
             except Exception as e:
                 logging.error(f"Error al obtener ventas desde el servicio: {str(e)}")
                 self.all_sales = []
@@ -455,23 +527,55 @@ class PageSales(ft.UserControl):
             # Ordenar ventas
             self.sort_sales()
             
-            # Actualizar tabla con ventas de la página actual
+            # Actualizar inmediatamente para intentar mostrar los datos lo antes posible
             self.update_table_with_sales(self.get_current_page_sales())
-            
-            # Actualizar información de paginación
             self.update_pagination()
+            self.update()
+            if hasattr(self, 'page') and self.page is not None:
+                self.page.update()
+            
+            # Forzar actualizaciones visuales con múltiples retrasos para asegurar que se renderice correctamente
+            if hasattr(self, 'page') and self.page is not None:
+                def update_ui_first():
+                    logging.info("Primera actualización programada (500ms)")
+                    # Actualizar tabla con ventas de la página actual
+                    self.update_table_with_sales(self.get_current_page_sales())
+                    # Actualizar información de paginación
+                    self.update_pagination()
+                    # Forzar actualización
+                    self.update()
+                    self.page.update()
+                
+                def update_ui_second():
+                    logging.info("Segunda actualización programada (1000ms)")
+                    if hasattr(self, 'table_container') and self.table_container is not None:
+                        if isinstance(self.table_container, ft.Container) and hasattr(self.table_container, 'content'):
+                            self.table_container.content.update()
+                        self.table_container.update()
+                    self.update()
+                    self.page.update()
+                
+                def update_ui_third():
+                    logging.info("Tercera actualización programada (2000ms)")
+                    current_sales = self.get_current_page_sales()
+                    logging.info(f"Actualizando con {len(current_sales)} ventas en la página actual")
+                    self.update_table_with_sales(current_sales)
+                    self.update()
+                    self.page.update()
+                
+                # Programar múltiples actualizaciones diferidas usando threading.Timer
+                import threading
+                threading.Timer(0.5, update_ui_first).start()
+                threading.Timer(1.0, update_ui_second).start()
+                threading.Timer(2.0, update_ui_third).start()
+            
+            logging.info(f"Ventas cargadas correctamente. Total: {len(self.all_sales)}")
             
         except Exception as e:
-            logging.error(f"Error al cargar ventas recientes: {str(e)}")
-            # No mostrar mensaje de error, pero reiniciar la tabla
-            self.all_sales = []
-            self.filtered_sales = []
-            try:
-                self.update_table_with_sales([])
-                self.update_pagination()
-            except:
-                pass
-            
+            logging.error(f"Error al cargar ventas automáticamente: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+    
     def update_table_with_sales(self, sales):
         try:
             # Crear filas para la tabla
@@ -899,6 +1003,47 @@ class PageSales(ft.UserControl):
         except Exception as e:
             logging.error(f"Error al actualizar datos: {str(e)}")
             show_error_message(self.page, f"Error al actualizar datos: {str(e)}")
+            
+    def load_recent_sales(self):
+        """Carga las ventas recientes sin mostrar mensajes de éxito"""
+        try:
+            # Obtener ventas de los últimos 30 días
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=30)
+            
+            # Obtener ventas recientes
+            try:
+                self.all_sales = self.sale_service.get_sales_between_dates(start_date, end_date)
+                logging.info(f"Se obtuvieron {len(self.all_sales)} ventas del servicio")
+            except Exception as e:
+                logging.error(f"Error al obtener ventas desde el servicio: {str(e)}")
+                self.all_sales = []
+            
+            if self.all_sales is None:
+                self.all_sales = []
+            
+            # Aplicar filtros actuales
+            self.filtered_sales = self.all_sales.copy()
+            
+            # Ordenar ventas
+            self.sort_sales()
+            
+            # Actualizar tabla con ventas de la página actual
+            self.update_table_with_sales(self.get_current_page_sales())
+            
+            # Actualizar información de paginación
+            self.update_pagination()
+            
+        except Exception as e:
+            logging.error(f"Error al cargar ventas recientes: {str(e)}")
+            # No mostrar mensaje de error, pero reiniciar la tabla
+            self.all_sales = []
+            self.filtered_sales = []
+            try:
+                self.update_table_with_sales([])
+                self.update_pagination()
+            except:
+                pass
     
     def create_view_sale_callback(self, sale_id):
         """Crea una función de callback para ver detalles de venta"""
@@ -989,159 +1134,14 @@ class PageSales(ft.UserControl):
             logging.error(f"Error al cerrar diálogo: {str(e)}")
             show_error_message(self.page, f"Error al cerrar diálogo: {str(e)}")
 
-    def load_sales(self):
-        """Carga automáticamente las ventas al inicializar la página"""
-        try:
-            logging.info("Cargando ventas automáticamente al iniciar...")
-            # Utilizar el método refresh_data existente pero sin mostrar mensaje
-            self.silent_refresh_data()
-            logging.info(f"Ventas cargadas correctamente. Total: {len(self.all_sales)}")
-            
-            # Forzar actualización visual completa
-            if hasattr(self, 'sales_table') and self.sales_table is not None:
-                # Verificar que la tabla esté en el DOM
-                if len(self.controls) > 0 and isinstance(self.controls[0], ft.Column):
-                    logging.info("Forzando actualización visual de la tabla...")
-                    # Actualizar el control principal
-                    self.update()
-                    # Forzar actualización de la página
-                    if hasattr(self, 'page') and self.page is not None:
-                        self.page.update()
-            
-        except Exception as e:
-            logging.error(f"Error al cargar ventas automáticamente: {str(e)}")
-            import traceback
-            logging.error(traceback.format_exc())
-            
-    def silent_refresh_data(self):
-        """Recarga los datos de ventas sin mostrar mensajes de éxito"""
-        try:
-            logging.info("Iniciando actualización silenciosa de datos...")
-            
-            # Reiniciar paginación
-            self.current_page = 1
-            
-            # Cargar ventas recientes
-            self.load_recent_sales()
-            
-            # Forzar actualización visual de los componentes
-            # Actualizar la tabla directamente
-            if hasattr(self, 'sales_table') and self.sales_table is not None:
-                current_sales = self.get_current_page_sales()
-                logging.info(f"Actualizando tabla con {len(current_sales)} ventas en la página actual")
-                self.update_table_with_sales(current_sales)
-                
-                # Verificar que la tabla esté en su contenedor
-                if hasattr(self, 'table_container') and self.table_container is not None:
-                    if hasattr(self.table_container, 'content'):
-                        logging.info("Actualizando contenedor de tabla")
-                        self.table_container.content = self.sales_table
-                        self.table_container.update()
-            
-            # Actualizar información de paginación
-            self.update_pagination()
-            
-            # Forzar actualización del componente completo
-            self.update()
-            
-            # Forzar actualización de toda la página
-            if hasattr(self, 'page') and self.page is not None:
-                logging.info("Forzando actualización de la página completa")
-                self.page.update()
-            
-            logging.info("Actualización silenciosa completada")
-            # No mostrar mensaje de éxito en esta versión silenciosa
-        except Exception as e:
-            logging.error(f"Error al actualizar datos silenciosamente: {str(e)}")
-            import traceback
-            logging.error(traceback.format_exc())
-            # No mostrar mensaje de error tampoco
-            
-    def create_view_sale_callback(self, sale_id):
-        """Crea una función de callback para ver detalles de venta"""
-        def handle_click(e):
-            try:
-                sale = self.sale_service.get_sale_by_id(sale_id)
-                if sale:
-                    self.view_sale_details(sale)
-                else:
-                    show_error_message(self.page, f"No se pudo encontrar la venta con ID {sale_id}")
-            except Exception as e:
-                logging.error(f"Error al obtener detalles de venta: {str(e)}")
-                show_error_message(self.page, f"Error al obtener detalles: {str(e)}")
-        return handle_click
-    
-    def view_sale_details(self, sale):
-        """Muestra los detalles de una venta"""
-        try:
-            # Obtener detalles de la venta
-            sale_items = self.sale_service.get_sale_items(sale.id)
-            
-            # Crear filas para la tabla de detalles
-            items_rows = []
-            for item in sale_items:
-                # Obtener producto
-                product = self.product_service.get_product_by_id(item.product_id)
-                product_name = product.name if product else "Producto no encontrado"
-                
-                # Crear fila
-                row = ft.DataRow(
-                    cells=[
-                        ft.DataCell(ft.Text(product_name, color=ft.colors.ON_SURFACE)),
-                        ft.DataCell(ft.Text(str(item.quantity), color=ft.colors.ON_SURFACE)),
-                        ft.DataCell(ft.Text(f"${item.unit_price:.2f}", color=ft.colors.ON_SURFACE)),
-                        ft.DataCell(ft.Text(f"${item.quantity * item.unit_price:.2f}", color=ft.colors.ON_SURFACE)),
-                    ]
-                )
-                items_rows.append(row)
-            
-            # Crear tabla de detalles
-            details_table = ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("Producto", color=ft.colors.ON_SURFACE)),
-                    ft.DataColumn(ft.Text("Cantidad", color=ft.colors.ON_SURFACE)),
-                    ft.DataColumn(ft.Text("Precio", color=ft.colors.ON_SURFACE)),
-                    ft.DataColumn(ft.Text("Subtotal", color=ft.colors.ON_SURFACE)),
-                ],
-                rows=items_rows,
-                border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
-                border_radius=10,
-                vertical_lines=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT),
-                horizontal_lines=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT),
-            )
-            
-            # Crear diálogo de detalles
-            self.page.dialog = ft.AlertDialog(
-                title=ft.Text(f"Detalles de Venta #{sale.id}", color=ft.colors.ON_SURFACE),
-                content=ft.Column([
-                    ft.Text(f"Fecha: {sale.date.strftime('%Y-%m-%d %H:%M')}", color=ft.colors.ON_SURFACE),
-                    ft.Text(f"Cliente: {sale.customer.name if sale.customer else 'Cliente no registrado'}", color=ft.colors.ON_SURFACE),
-                    ft.Container(height=10),
-                    ft.Text("Productos:", weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
-                    details_table,
-                    ft.Container(height=10),
-                    ft.Text(f"Total: ${sale.total_amount:.2f}", weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
-                ], scroll=ft.ScrollMode.AUTO, height=400),
-                actions=[
-                    ft.TextButton("Cerrar", on_click=self.close_dialog),
-                ],
-                actions_alignment=ft.MainAxisAlignment.END,
-                bgcolor=ft.colors.SURFACE
-            )
-            
-            # Mostrar diálogo
-            self.page.dialog.open = True
-            self.page.update()
-            
-        except Exception as e:
-            logging.error(f"Error al mostrar detalles de venta: {str(e)}")
-            show_error_message(self.page, f"Error al mostrar detalles de venta: {str(e)}")
-    
-    def close_dialog(self, e):
-        """Cierra el diálogo actual"""
-        try:
-            self.page.dialog.open = False
-            self.page.update()
-        except Exception as e:
-            logging.error(f"Error al cerrar diálogo: {str(e)}")
-            show_error_message(self.page, f"Error al cerrar diálogo: {str(e)}") 
+    def did_mount(self):
+        """Se ejecuta cuando el componente ha sido montado en la UI"""
+        logging.info("PageSales: did_mount ejecutado")
+        
+        # Cargar ventas después de que el componente haya sido montado
+        if not hasattr(self, 'ventas_cargadas') or not self.ventas_cargadas:
+            logging.info("Cargando ventas desde did_mount...")
+            self.ventas_cargadas = True
+            self.load_sales()
+        
+        return super().did_mount()

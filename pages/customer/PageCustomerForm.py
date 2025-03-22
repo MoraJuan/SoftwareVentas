@@ -4,11 +4,12 @@ from services.customerService import CustomerService
 from ui.components.alerts import show_success_message, show_error_message
 
 class PageCustomerForm(ft.UserControl):
-    def __init__(self, page: ft.Page, session: Session, edit_mode=False):
+    def __init__(self, page: ft.Page, session: Session, edit_mode=False, go_back_callback=None):
         super().__init__()
         self.page = page
         self.session = session
         self.edit_mode = edit_mode
+        self.go_back_callback = go_back_callback
         self.customer_service = CustomerService(session)
         self.page.title = "Agregar Comprador" if not edit_mode else "Editar Comprador"
         self.build_ui()
@@ -125,12 +126,12 @@ class PageCustomerForm(ft.UserControl):
         if self.edit_mode:
             self.page.client_storage.remove("edit_customer_id")
         
-        # Usar la factory para crear la página de compradores
+        # Siempre volver a la vista de clientes, nunca directamente a reportes
         from pages.customer.page_factory import CustomerPageFactory
         customer_page = CustomerPageFactory.create_customer_page(
             self.page, 
             self.session, 
-            lambda: None  # Placeholder for go_back_callback
+            self.go_back_callback  # Mantener el callback para cuando se use en la página de clientes
         )
         
         self.controls.clear()

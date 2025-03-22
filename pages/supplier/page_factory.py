@@ -10,7 +10,7 @@ class SupplierPageFactory:
         return PageSupplier(page, session, go_back_callback)
     
     @staticmethod
-    def create_supplier_form(page, session, edit_mode=False):
+    def create_supplier_form(page, session, edit_mode=False, go_back_callback=None):
         """Crea una instancia de PageSupplierForm"""
         from pages.supplier.PageSupplierForm import PageSupplierForm
-        return PageSupplierForm(page, session, edit_mode) 
+        return PageSupplierForm(page, session, edit_mode, go_back_callback) 

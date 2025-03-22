@@ -5,11 +5,12 @@ from ui.components.alerts import show_success_message, show_error_message
 import re
 
 class PageSupplierForm(ft.UserControl):
-    def __init__(self, page: ft.Page, session: Session, edit_mode=False):
+    def __init__(self, page: ft.Page, session: Session, edit_mode=False, go_back_callback=None):
         super().__init__()
         self.page = page
         self.session = session
         self.edit_mode = edit_mode
+        self.go_back_callback = go_back_callback  # Guardamos el callback original
         self.supplier_service = SupplierService(session)
         self.page.title = "Agregar Proveedor" if not edit_mode else "Editar Proveedor"
         self.build_ui()
@@ -151,12 +152,12 @@ class PageSupplierForm(ft.UserControl):
         if self.edit_mode:
             self.page.client_storage.remove("edit_supplier_id")
         
-        # Usar la factory para crear la página de proveedores
+        # Siempre volver a la vista de proveedores, nunca directamente a reportes
         from pages.supplier.page_factory import SupplierPageFactory
         supplier_page = SupplierPageFactory.create_supplier_page(
             self.page, 
             self.session, 
-            lambda: None  # Placeholder for go_back_callback
+            self.go_back_callback  # Mantener el callback para cuando se use en la página de proveedores
         )
         
         self.controls.clear()
