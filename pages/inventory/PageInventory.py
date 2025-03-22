@@ -131,6 +131,9 @@ class PageInventory(ft.UserControl):
             logging.error(f"Error construyendo UI de inventario: {str(e)}")
             self.controls = [ft.Text(f"Error al cargar el inventario: {str(e)}", color=ft.colors.ERROR)]
 
+    def build(self):
+        return ft.Column(self.controls, expand=True)
+
     def load_inventory(self, e=None):
         try:
             logging.info("Iniciando carga de inventario")
@@ -220,9 +223,6 @@ class PageInventory(ft.UserControl):
             self.table_container.scroll = ft.ScrollMode.AUTO if self.is_mobile else None
             self.search_field.width = min(self.page.width * 0.8, 500) if self.is_mobile else 500
             self.update()
-
-    def build(self):
-        return ft.Column(self.controls, expand=True)
 
     def show_categories(self):
         self.controls.clear()
