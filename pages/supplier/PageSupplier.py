@@ -1,305 +1,220 @@
 import flet as ft
-import csv
-from io import StringIO
-from sqlalchemy.orm import Session
 from services.supplierService import SupplierService
+from ui.components.data_table import DataTable
 from ui.components.alerts import show_error_message, show_success_message
-from ui.components.navigation import create_navigation_rail, get_route_for_index
+import logging
 
-
-class PageSupplier(ft.View):
-    def __init__(self, page: ft.Page, session: Session):
-        super().__init__(route="/ver_proveedores", controls=[], padding=0)
+class PageSupplier(ft.UserControl):
+    def __init__(self, page: ft.Page, session, go_back_callback):
+        super().__init__()
         self.page = page
         self.session = session
-        self.page.title = "Lista de Proveedores"
+        self.go_back_callback = go_back_callback
         self.supplier_service = SupplierService(session)
+        self.is_mobile = self.page.width < 600
         self.all_suppliers = []
-        self.current_page = 1
-        self.suppliers_per_page = 10
-        self.sort_column = None
-        self.sort_reverse = False
+        self.table = None
+        self.table_container = None
+        self.search_field = None
+        self.main_content = None
         self.build_ui()
+        self.page.on_resize = self.handle_resize
 
     def build_ui(self):
         try:
+            self.load_suppliers()
 
-            # Barra de navegación lateral
-            self.navigation_rail = create_navigation_rail(2, self.handle_navigation)
-            header = ft.Row(
-            [
+            self.search_field = ft.TextField(
+                label="Buscar proveedores",
+                prefix_icon=ft.icons.SEARCH,
+                width=min(self.page.width * 0.8, 500) if self.is_mobile else 500,
+                border_radius=20,
+                on_change=self.filter_suppliers,
+                hint_text="Ingrese el nombre del proveedor...",
+                height=50
+            )
+
+            supplier_actions = ft.Row([
+                ft.FilledButton(
+                    text="Agregar/Editar",
+                    icon=ft.icons.ADD,
+                    on_click=lambda _: self.add_supplier()
+                ),
                 ft.IconButton(
                     icon=ft.icons.ARROW_BACK,
-                    icon_color=ft.colors.BLUE,
                     tooltip="Volver a Reportes",
-                    on_click=lambda _: self.page.go("/ver_reportes")
-                ),
-                ft.Text(
-                    "Reporte de Ventas",
-                    size=24,
-                    weight=ft.FontWeight.BOLD
-                ),
-            ],
-            alignment=ft.MainAxisAlignment.START
+                    on_click=lambda _: self.go_back_callback(),
+                    icon_color=ft.colors.PRIMARY
+                )
+            ], wrap=True, spacing=10)
+
+            table_width = min(self.page.width * 0.95, 1000) if self.is_mobile else min(self.page.width * 0.8, 1200)
+            supplier_data = self.get_supplier_data()
+            self.table = DataTable(
+                columns=["ID", "Nombre", "Teléfono", "Email", "Dirección", "Acciones"],
+                data=supplier_data,
+                items_per_page=10,
+                on_select=self.edit_supplier,
+                on_delete=self.delete_supplier
+            )
+            self.table_container = ft.Column(
+                [self.table],
+                width=table_width,
+                scroll=ft.ScrollMode.AUTO if self.is_mobile else None,
+                expand=True,
+                spacing=0
+            )
+            self.table_wrapper = ft.Container(
+                content=self.table_container,
+                padding=10,
+                border_radius=5,
+                bgcolor=ft.colors.SURFACE,
+                shadow=ft.BoxShadow(
+                    spread_radius=1,
+                    blur_radius=5,
+                    color=ft.colors.with_opacity(0.2, ft.colors.BLACK)
+                )
             )
 
-            # Campo de búsqueda
-            self.search_field = ft.TextField(
-                label="Buscar proveedor",
-                width=300,
-                prefix_icon=ft.icons.SEARCH,
-                on_change=self.filter_suppliers
-            )
-
-            # Botón de exportar a CSV
-            self.export_button = ft.IconButton(
-                icon=ft.icons.DOWNLOAD,
-                tooltip="Exportar a CSV",
-                on_click=self.export_to_csv
-            )
-
-            # Controles de paginación
-            self.prev_button = ft.IconButton(
-                icon=ft.icons.ARROW_BACK,
-                tooltip="Página anterior",
-                on_click=self.prev_page
-            )
-            self.next_button = ft.IconButton(
-                icon=ft.icons.ARROW_FORWARD,
-                tooltip="Página siguiente",
-                on_click=self.next_page
-            )
-            self.page_info = ft.Text(f"Páginas: {self.current_page}")
-
-            # Barra de progreso
-            self.progress_bar = ft.ProgressBar(visible=False)
-            
-           
-            # Tabla de proveedores
-            self.supplier_table = ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("ID"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Nombre"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Email"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Teléfono"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Dirección"), on_sort=self.sort_suppliers),
-                    ft.DataColumn(ft.Text("Acciones")),
+            content_column = ft.Column(
+                [
+                    ft.Text("Proveedores", size=20 if self.is_mobile else 24, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
+                    ft.Text("Gestión de proveedores", size=14 if self.is_mobile else 16, color=ft.colors.ON_SURFACE_VARIANT),
+                    ft.Container(height=10),
+                    supplier_actions,
+                    ft.Row([
+                        self.search_field,
+                        ft.IconButton(
+                            icon=ft.icons.REFRESH,
+                            on_click=self.load_suppliers,
+                            icon_color=ft.colors.PRIMARY
+                        )
+                    ]),
+                    ft.Container(height=10),
+                    self.table_wrapper,
+                    ft.Text(f"Total: {len(self.all_suppliers)} proveedores", size=12, text_align=ft.TextAlign.CENTER)
                 ],
-                rows=[]
+                alignment=ft.MainAxisAlignment.START,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                scroll=ft.ScrollMode.AUTO,
+                expand=True
             )
 
-            # Botón para agregar proveedor
-            self.add_button = ft.ElevatedButton(
-                "Agregar Proveedor",
-                on_click=lambda e: self.page.go("/agregar_proveedor")
+            self.main_content = ft.Container(
+                content=content_column,
+                padding=10 if self.is_mobile else 20
             )
-
-            self.load_suppliers()
-           
-            # Diseño del contenido
-            header,
-            content = ft.Column([
-                ft.Text("Proveedores", size=20, weight=ft.FontWeight.BOLD),
-                ft.Row([
-                    self.search_field,
-                    self.export_button
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                self.progress_bar,
-                self.add_button,
-                ft.Divider(height=20), 
-                self.supplier_table,
-                ft.Row([
-                    self.prev_button,
-                    self.page_info,
-                    self.next_button
-                ], alignment=ft.MainAxisAlignment.CENTER)
-            ], spacing=20)
-
-            # Configuración principal de controles sin scroll
-            self.controls = [
-                ft.Row([
-                    self.navigation_rail,
-                    ft.Container(
-                        content=content,
-                        expand=True,
-                        padding=20
-                    )
-                ], expand=True)
-            ]
+            
+            self.controls = [self.main_content]
 
         except Exception as e:
-            show_error_message(self.page, f"Error construyendo UI: {str(e)}")
+            logging.error(f"Error construyendo UI de proveedores: {str(e)}")
+            self.controls = [ft.Text(f"Error al cargar los proveedores: {str(e)}", color=ft.colors.ERROR)]
 
-    def handle_navigation(self, e):
-        """Manejar eventos de navegación"""
+    def load_suppliers(self, e=None):
         try:
-            route = get_route_for_index(e.control.selected_index)
-            self.page.go(route)
-            self.page.update()
+            logging.info("Iniciando carga de proveedores")
+            self.all_suppliers = self.supplier_service.get_all_suppliers()
+            logging.info(f"Proveedores cargados: {len(self.all_suppliers)}")
+            if self.table:
+                self.table.set_data(self.get_supplier_data())
+                logging.info("Datos establecidos en la tabla")
+            self.update()
         except Exception as e:
-            show_error_message(self.page, f"Error de navegación: {str(e)}")
+            logging.error(f"Error al cargar proveedores: {str(e)}")
+            show_error_message(self.page, f"Error al cargar proveedores: {str(e)}")
 
     def filter_suppliers(self, e):
-        """Filtrar proveedores según el texto de búsqueda"""
-        search_term = self.search_field.value.lower()
+        search_text = self.search_field.value.lower()
         filtered = [
-            supplier for supplier in self.all_suppliers
-            if search_term in supplier.name.lower() or search_term in supplier.email.lower()
+            s for s in self.all_suppliers
+            if search_text in s.name.lower()
+        ] if search_text else self.all_suppliers.copy()
+        self.table.set_data([
+            {
+                "ID": str(s.id),
+                "Nombre": s.name,
+                "Teléfono": s.phone or "N/A",
+                "Email": s.email,
+                "Dirección": s.address,
+                "supplier": s
+            } for s in filtered
+        ])
+
+    def get_supplier_data(self):
+        return [
+            {
+                "ID": str(s.id),
+                "Nombre": s.name,
+                "Teléfono": s.phone or "N/A",
+                "Email": s.email,
+                "Dirección": s.address,
+                "supplier": s
+            } for s in self.all_suppliers
         ]
-        self.update_table(filtered)
+
+    def delete_supplier(self, row_data):
+        supplier = row_data["supplier"]
+        self.page.dialog = ft.AlertDialog(
+            title=ft.Text(f"¿Eliminar proveedor {supplier.name}?"),
+            content=ft.Text("Esta acción no se puede deshacer."),
+            actions=[
+                ft.TextButton("Cancelar", on_click=lambda _: self.close_dialog()),
+                ft.TextButton("Eliminar", on_click=lambda _: self.confirm_delete_supplier(supplier))
+            ],
+            actions_alignment=ft.MainAxisAlignment.END
+        )
+        self.page.dialog.open = True
+        self.page.update()
+
+    def confirm_delete_supplier(self, supplier):
+        self.supplier_service.delete_supplier(supplier.id)
+        self.close_dialog()
+        self.load_suppliers()
+        show_success_message(self.page, f"Proveedor {supplier.name} eliminado correctamente")
+
+    def close_dialog(self):
+        self.page.dialog.open = False
+        self.page.update()
+
+    def handle_resize(self, e):
+        new_is_mobile = self.page.width < 600
+        if new_is_mobile != self.is_mobile:
+            self.is_mobile = new_is_mobile
+            self.build_ui()
+            self.update()
+        elif self.table_container:
+            new_table_width = min(self.page.width * 0.95, 1000) if self.is_mobile else min(self.page.width * 0.8, 1200)
+            self.table_container.width = new_table_width
+            self.table_container.scroll = ft.ScrollMode.AUTO if self.is_mobile else None
+            self.search_field.width = min(self.page.width * 0.8, 500) if self.is_mobile else 500
+            self.update()
+    
+    def edit_supplier(self, row_data):
+        supplier = row_data["supplier"]
+        self.page.client_storage.set("edit_supplier_id", supplier.id)
+        
+        # Usar la factory para crear el formulario
+        from pages.supplier.page_factory import SupplierPageFactory
+        supplier_form = SupplierPageFactory.create_supplier_form(self.page, self.session, edit_mode=True)
+        
+        self.controls.clear()
+        self.controls.append(supplier_form)
         self.update()
 
-    def export_to_csv(self, e):
-        """Exportar la lista de proveedores a un archivo CSV"""
-        try:
-            output = StringIO()
-            writer = csv.writer(output)
-            writer.writerow(["ID", "Nombre", "Email", "Teléfono", "Dirección"])
-            for supplier in self.all_suppliers:
-                writer.writerow([supplier.id, supplier.name, supplier.email, supplier.phone, supplier.address])
-            csv_data = output.getvalue()
-            # Codificar datos CSV para URL
-            csv_url = f"data:text/csv;charset=utf-8,{csv_data}"
-            self.page.launch_url(csv_url)
-            show_success_message(self.page, "Proveedores exportados exitosamente.")
-        except Exception as e:
-            show_error_message(self.page, f"Error al exportar proveedores: {str(e)}")
+    def add_supplier(self):
+        # Usar la factory para crear el formulario
+        from pages.supplier.page_factory import SupplierPageFactory
+        supplier_form = SupplierPageFactory.create_supplier_form(self.page, self.session)
+        
+        self.controls.clear()
+        self.controls.append(supplier_form)
+        self.update()
 
-    def sort_suppliers(self, e):
-        """Ordenar proveedores según la columna clicada"""
-        column = e.column_index
-        if self.sort_column == column:
-            self.sort_reverse = not self.sort_reverse
-        else:
-            self.sort_column = column
-            self.sort_reverse = False
+    def go_back(self):
+        self.controls.clear()
+        self.controls.append(self.main_content)
+        self.update()
 
-        if column == 0:  # ID
-            self.all_suppliers.sort(key=lambda s: s.id, reverse=self.sort_reverse)
-        elif column == 1:  # Nombre
-            self.all_suppliers.sort(key=lambda s: s.name.lower(), reverse=self.sort_reverse)
-        elif column == 2:  # Email
-            self.all_suppliers.sort(key=lambda s: s.email.lower(), reverse=self.sort_reverse)
-        elif column == 3:  # Teléfono
-            self.all_suppliers.sort(key=lambda s: s.phone, reverse=self.sort_reverse)
-        elif column == 4:  # Dirección
-            self.all_suppliers.sort(key=lambda s: s.address.lower(), reverse=self.sort_reverse)
-
-        self.update_table(self.get_paginated_suppliers())
-
-    def prev_page(self, e):
-        """Ir a la página anterior"""
-        if self.current_page > 1:
-            self.current_page -= 1
-            self.update_pagination()
-
-    def next_page(self, e):
-        """Ir a la página siguiente"""
-        total_pages = (len(self.all_suppliers) + self.suppliers_per_page - 1) // self.suppliers_per_page
-        if self.current_page < total_pages:
-            self.current_page += 1
-            self.update_pagination()
-
-    def update_pagination(self):
-        """Actualizar la tabla basada en la página actual"""
-        paginated = self.get_paginated_suppliers()
-        self.update_table(paginated)
-        total_pages = (len(self.all_suppliers) + self.suppliers_per_page - 1) // self.suppliers_per_page
-        self.page_info.value = f"Páginas: {self.current_page} de {total_pages}"
-        self.page_info.update()
-
-    def get_paginated_suppliers(self):
-        """Obtener proveedores para la página actual"""
-        start = (self.current_page - 1) * self.suppliers_per_page
-        end = start + self.suppliers_per_page
-        return self.all_suppliers[start:end]
-
-    def update_table(self, suppliers):
-        """Actualizar la tabla de proveedores con la lista proporcionada"""
-        self.supplier_table.rows.clear()
-        for supplier in suppliers:
-            self.add_supplier_to_table(supplier)
-        self.supplier_table.update()
-
-    def add_supplier_to_table(self, supplier):
-        """Método auxiliar para agregar un proveedor a la tabla"""
-        self.supplier_table.rows.append(
-            ft.DataRow(
-                cells=[
-                    ft.DataCell(ft.Text(str(supplier.id))),
-                    ft.DataCell(ft.Text(supplier.name)),
-                    ft.DataCell(ft.Text(supplier.email)),
-                    ft.DataCell(ft.Text(supplier.phone)),
-                    ft.DataCell(ft.Text(supplier.address)),
-                    ft.DataCell(
-                        ft.Row([
-                            ft.IconButton(
-                                icon=ft.icons.VISIBILITY,
-                                tooltip="Ver Detalles",
-                                on_click=lambda e, s=supplier: self.view_supplier(s)
-                            ),
-                            ft.IconButton(
-                                icon=ft.icons.EDIT,
-                                tooltip="Editar",
-                                on_click=lambda e, s=supplier: self.edit_supplier(s)
-                            ),
-                            ft.IconButton(
-                                icon=ft.icons.DELETE,
-                                tooltip="Eliminar",
-                                on_click=lambda e, s=supplier: self.delete_supplier(s)
-                            ),
-                        ])
-                    ),
-                ]
-            )
-        )
-
-    def view_supplier(self, supplier):
-        """Ver información detallada de un proveedor"""
-        try:
-            self.page.dialog = ft.AlertDialog(
-                title=ft.Text(f"Detalles del Proveedor: {supplier.name}"),
-                content=ft.Column([
-                    ft.Text(f"ID: {supplier.id}"),
-                    ft.Text(f"Nombre: {supplier.name}"),
-                    ft.Text(f"Email: {supplier.email}"),
-                    ft.Text(f"Teléfono: {supplier.phone}"),
-                    ft.Text(f"Dirección: {supplier.address}"),
-                    ft.Text(f"Descripción: {supplier.description or 'No disponible'}"),
-                ]),
-                actions=[
-                    ft.TextButton(
-                        "Cerrar",
-                        on_click=lambda e: self.close_dialog()
-                    )
-                ],
-                actions_alignment=ft.MainAxisAlignment.END,
-            )
-            self.page.dialog.open = True
-            self.page.update()
-        except Exception as e:
-            show_error_message(self.page, f"Error al ver detalles del proveedor: {str(e)}")
-
-    def edit_supplier(self, supplier):
-        """Navegar a la página de edición de proveedor"""
-        try:
-            self.page.go(f"/editar_proveedor/{supplier.id}")
-        except Exception as e:
-            show_error_message(self.page, f"Error al editar proveedor: {str(e)}")
-
-    def delete_supplier(self, supplier):
-        """Eliminar un proveedor"""
-        try:
-            self.supplier_service.delete_supplier(supplier.id)
-            show_success_message(self.page, f"Proveedor {supplier.name} eliminado.")
-            self.load_suppliers()  # Recargar la lista
-        except Exception as e:
-            show_error_message(self.page, f"Error al eliminar proveedor: {str(e)}")
-
-    def load_suppliers(self):
-        """Cargar los proveedores desde el servicio"""
-        try:
-            self.all_suppliers = self.supplier_service.get_all_suppliers()
-            self.update_pagination()
-        except Exception as e:
-            show_error_message(self.page, f"Error al cargar proveedores: {str(e)}")
+    def build(self):
+        return ft.Column(self.controls, expand=True)

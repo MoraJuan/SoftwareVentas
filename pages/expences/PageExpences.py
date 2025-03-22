@@ -1,18 +1,18 @@
 import flet as ft
-from services.customerService import CustomerService  # Asumimos este servicio
+from services.expenseService import ExpenseService  # Asumimos este servicio
 from ui.components.data_table import DataTable
 from ui.components.alerts import show_error_message, show_success_message
 import logging
 
-class PageCustomer(ft.UserControl):
+class PageExpense(ft.UserControl):
     def __init__(self, page: ft.Page, session, go_back_callback):
         super().__init__()
         self.page = page
         self.session = session
         self.go_back_callback = go_back_callback
-        self.customer_service = CustomerService(session)
+        self.expense_service = ExpenseService(session)
         self.is_mobile = self.page.width < 600
-        self.all_customers = []
+        self.all_expenses = []
         self.table = None
         self.table_container = None
         self.search_field = None
@@ -21,23 +21,23 @@ class PageCustomer(ft.UserControl):
 
     def build_ui(self):
         try:
-            self.load_customers()
+            self.load_expenses()
 
             self.search_field = ft.TextField(
-                label="Buscar clientes",
+                label="Buscar gastos",
                 prefix_icon=ft.icons.SEARCH,
                 width=min(self.page.width * 0.8, 500) if self.is_mobile else 500,
                 border_radius=20,
-                on_change=self.filter_customers,
-                hint_text="Ingrese el nombre del cliente...",
+                on_change=self.filter_expenses,
+                hint_text="Ingrese la descripción del gasto...",
                 height=50
             )
 
-            customer_actions = ft.Row([
+            expense_actions = ft.Row([
                 ft.FilledButton(
                     text="Agregar/Editar",
                     icon=ft.icons.ADD,
-                    on_click=lambda _: self.add_customer()
+                    on_click=lambda _: self.page.go("/agregar_gasto")
                 ),
                 ft.IconButton(
                     icon=ft.icons.ARROW_BACK,
@@ -48,13 +48,13 @@ class PageCustomer(ft.UserControl):
             ], wrap=True, spacing=10)
 
             table_width = min(self.page.width * 0.95, 1000) if self.is_mobile else min(self.page.width * 0.8, 1200)
-            customer_data = self.get_customer_data()
+            expense_data = self.get_expense_data()
             self.table = DataTable(
-                columns=["ID", "Nombre", "Teléfono", "Email", "Dirección", "Acciones"],
-                data=customer_data,
+                columns=["ID", "Descripción", "Monto", "Fecha", "Acciones"],
+                data=expense_data,
                 items_per_page=10,
-                on_select=self.edit_customer,
-                on_delete=self.delete_customer
+                on_select=self.edit_expense,
+                on_delete=self.delete_expense
             )
             self.table_container = ft.Column(
                 [self.table],
@@ -77,21 +77,21 @@ class PageCustomer(ft.UserControl):
 
             content_column = ft.Column(
                 [
-                    ft.Text("Clientes", size=20 if self.is_mobile else 24, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
-                    ft.Text("Gestión de clientes", size=14 if self.is_mobile else 16, color=ft.colors.ON_SURFACE_VARIANT),
+                    ft.Text("Gastos", size=20 if self.is_mobile else 24, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
+                    ft.Text("Gestión de gastos", size=14 if self.is_mobile else 16, color=ft.colors.ON_SURFACE_VARIANT),
                     ft.Container(height=10),
-                    customer_actions,
+                    expense_actions,
                     ft.Row([
                         self.search_field,
                         ft.IconButton(
                             icon=ft.icons.REFRESH,
-                            on_click=self.load_customers,
+                            on_click=self.load_expenses,
                             icon_color=ft.colors.PRIMARY
                         )
                     ]),
                     ft.Container(height=10),
                     self.table_wrapper,
-                    ft.Text(f"Total: {len(self.all_customers)} clientes", size=12, text_align=ft.TextAlign.CENTER)
+                    ft.Text(f"Total: {len(self.all_expenses)} gastos", size=12, text_align=ft.TextAlign.CENTER)
                 ],
                 alignment=ft.MainAxisAlignment.START,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -107,75 +107,73 @@ class PageCustomer(ft.UserControl):
             ]
 
         except Exception as e:
-            logging.error(f"Error construyendo UI de clientes: {str(e)}")
-            self.controls = [ft.Text(f"Error al cargar los clientes: {str(e)}", color=ft.colors.ERROR)]
+            logging.error(f"Error construyendo UI de gastos: {str(e)}")
+            self.controls = [ft.Text(f"Error al cargar los gastos: {str(e)}", color=ft.colors.ERROR)]
 
-    def load_customers(self, e=None):
+    def load_expenses(self, e=None):
         try:
-            logging.info("Iniciando carga de clientes")
-            self.all_customers = self.customer_service.get_all_customers()
-            logging.info(f"Clientes cargados: {len(self.all_customers)}")
+            logging.info("Iniciando carga de gastos")
+            self.all_expenses = self.expense_service.get_all_expenses()
+            logging.info(f"Gastos cargados: {len(self.all_expenses)}")
             if self.table:
-                self.table.set_data(self.get_customer_data())
+                self.table.set_data(self.get_expense_data())
                 logging.info("Datos establecidos en la tabla")
             self.update()
         except Exception as e:
-            logging.error(f"Error al cargar clientes: {str(e)}")
-            show_error_message(self.page, f"Error al cargar clientes: {str(e)}")
+            logging.error(f"Error al cargar gastos: {str(e)}")
+            show_error_message(self.page, f"Error al cargar gastos: {str(e)}")
 
-    def filter_customers(self, e):
+    def filter_expenses(self, e):
         search_text = self.search_field.value.lower()
         filtered = [
-            c for c in self.all_customers
-            if search_text in c.name.lower()
-        ] if search_text else self.all_customers.copy()
+            e for e in self.all_expenses
+            if search_text in e.description.lower()
+        ] if search_text else self.all_expenses.copy()
         self.table.set_data([
             {
-                "ID": str(c.id),
-                "Nombre": c.name,
-                "Teléfono": c.phone or "N/A",
-                "Email": c.email,
-                "Dirección": c.address,
-                "customer": c
-            } for c in filtered
+                "ID": str(e.id),
+                "Descripción": e.description,
+                "Monto": f"${e.amount:.2f}",
+                "Fecha": e.date.strftime("%Y-%m-%d") if e.date else "N/A",
+                "expense": e
+            } for e in filtered
         ])
 
-    def get_customer_data(self):
+    def get_expense_data(self):
         return [
             {
-                "ID": str(c.id),
-                "Nombre": c.name,
-                "Teléfono": c.phone or "N/A",
-                "Email": c.email,
-                "Dirección": c.address,
-                "customer": c
-            } for c in self.all_customers
+                "ID": str(e.id),
+                "Descripción": e.description,
+                "Monto": f"${e.amount:.2f}",
+                "Fecha": e.date.strftime("%Y-%m-%d") if e.date else "N/A",
+                "expense": e
+            } for e in self.all_expenses
         ]
 
-    def edit_customer(self, row_data):
-        customer = row_data["customer"]
-        self.page.client_storage.set("edit_customer_id", customer.id)
-        self.page.go("/editar_cliente")
+    def edit_expense(self, row_data):
+        expense = row_data["expense"]
+        self.page.client_storage.set("edit_expense_id", expense.id)
+        self.page.go("/editar_gasto")
 
-    def delete_customer(self, row_data):
-        customer = row_data["customer"]
+    def delete_expense(self, row_data):
+        expense = row_data["expense"]
         self.page.dialog = ft.AlertDialog(
-            title=ft.Text(f"¿Eliminar cliente {customer.name}?"),
+            title=ft.Text(f"¿Eliminar gasto {expense.description}?"),
             content=ft.Text("Esta acción no se puede deshacer."),
             actions=[
                 ft.TextButton("Cancelar", on_click=lambda _: self.close_dialog()),
-                ft.TextButton("Eliminar", on_click=lambda _: self.confirm_delete_customer(customer))
+                ft.TextButton("Eliminar", on_click=lambda _: self.confirm_delete_expense(expense))
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
         self.page.dialog.open = True
         self.page.update()
 
-    def confirm_delete_customer(self, customer):
-        self.customer_service.delete_customer(customer.id)
+    def confirm_delete_expense(self, expense):
+        self.expense_service.delete_expense(expense.id)
         self.close_dialog()
-        self.load_customers()
-        show_success_message(self.page, f"Cliente {customer.name} eliminado correctamente")
+        self.load_expenses()
+        show_success_message(self.page, f"Gasto {expense.description} eliminado correctamente")
 
     def close_dialog(self):
         self.page.dialog.open = False
@@ -190,18 +188,9 @@ class PageCustomer(ft.UserControl):
         elif self.table_container:
             new_table_width = min(self.page.width * 0.95, 1000) if self.is_mobile else min(self.page.width * 0.8, 1200)
             self.table_container.width = new_table_width
-            self.table_container.scroll = ft.ScrollMode.AUTO if self.is_mobile else None
+            self.table_container.scroll = ft.ScrollMode.AUTO if self.is_mobile else ft.ScrollMode.MULTILINE if self.is_mobile else None
             self.search_field.width = min(self.page.width * 0.8, 500) if self.is_mobile else 500
             self.update()
-        
-    def add_customer(self):
-        # Usar la factory para crear el formulario
-        from pages.customer.page_factory import CustomerPageFactory
-        customer_form = CustomerPageFactory.create_customer_form(self.page, self.session)
-        
-        self.controls.clear()
-        self.controls.append(customer_form)
-        self.update()   
 
     def build(self):
         return ft.Column(self.controls, expand=True)

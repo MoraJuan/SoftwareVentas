@@ -9,7 +9,7 @@ load_dotenv()
 Base = declarative_base()
 
 # Crear el motor de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas_new.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas.db")
 engine = create_engine(DATABASE_URL, echo=True)
 
 # Configurar la sesión
@@ -30,26 +30,10 @@ def init_db():
     from models.CommercialInvoice import CommercialInvoice
     from models.Administrator import Administrator
     from models.Employee import Employee
+    from models.Subcategory import Subcategory
     
     # Crear todas las tablas
     Base.metadata.create_all(bind=engine)
-
-    # Insertar "desconocido"
-    db = SessionLocal()
-    try:
-        unknown = db.query(Customer).filter_by(name="Desconocido").first()
-        if not unknown:
-            unknown = Customer(
-                id=0,
-                name="Desconocido",
-                email="desconocido@example.com",
-                phone="000-0000",
-                address="Sin dirección"
-            )
-            db.add(unknown)
-            db.commit()
-    finally:
-        db.close()
 
 def get_db():
     """Proporciona una sesión de base de datos"""

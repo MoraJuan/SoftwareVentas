@@ -8,19 +8,13 @@ from services.saleService import SaleService
 from services.productService import ProductService
 from services.expenseService import ExpenseService
 from ui.components.navigation import create_navigation_rail, ThemeIconButton
-from .stats import create_stats_row
 from ui.components.alerts import show_error_message
-from .content import DashboardContent
 from ui.components.stats_card import StatsCard
 
 
-class DashboardView(ft.View):
+class PageDashboard(ft.UserControl):
     def __init__(self, page: ft.Page, session):
-        super().__init__(
-            route="/",
-            padding=0,
-            bgcolor=ft.colors.SURFACE
-        )
+        super().__init__()
         self.page = page
         self.session = session
         self.sale_service = SaleService(session)

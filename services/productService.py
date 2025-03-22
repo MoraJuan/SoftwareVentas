@@ -60,6 +60,22 @@ class ProductService:
         except Exception as e:
             logging.error(f"Error al obtener nombre de categoría: {str(e)}")
             return None
+        
+    def get_subcategory_name_by_id(self, subcategory_id: str) -> Optional[str]:
+        """Obtiene el nombre de una subcategoría por su ID"""
+        try:
+            if not subcategory_id or not str(subcategory_id).isdigit() or subcategory_id == "0":
+                return None
+                
+            # Importar CategoryService aquí para evitar importación circular
+            from services.subcategoryService import SubcategoryService
+            subcategory_service = SubcategoryService(self.db)
+            
+            subcategory = subcategory_service.get_subcategory_by_id(int(subcategory_id))
+            return subcategory.name if subcategory else None
+        except Exception as e:
+            logging.error(f"Error al obtener nombre de subcategoría: {str(e)}")
+            return None
             
     def create_product(self, product_data: dict) -> Product:
         """Crea un nuevo producto"""
@@ -70,6 +86,11 @@ class ProductService:
                 if category_name:
                     product_data["category"] = category_name
             
+            if "subcategory" in product_data and product_data["subcategory"] and str(product_data["subcategory"]).isdigit() and product_data["subcategory"] != "0":
+                subcategory_name = self.get_subcategory_name_by_id(product_data["subcategory"])
+                if subcategory_name:
+                    product_data["subcategory"] = subcategory_name
+
             product = Product(**product_data)
             self.db.add(product)
             self.db.commit()
@@ -103,6 +124,11 @@ class ProductService:
                     category_name = self.get_category_name_by_id(product_data["category"])
                     if category_name:
                         product_data["category"] = category_name
+                
+                if "subcategory" in product_data and product_data["subcategory"] and str(product_data["subcategory"]).isdigit() and product_data["subcategory"] != "0":
+                    subcategory_name = self.get_subcategory_name_by_id(product_data["subcategory"])
+                    if subcategory_name:
+                        product_data["subcategory"] = subcategory_name
                 
                 # Actualizar atributos
                 for key, value in product_data.items():

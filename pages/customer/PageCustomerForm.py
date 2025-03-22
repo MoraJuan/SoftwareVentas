@@ -3,13 +3,9 @@ from sqlalchemy.orm import Session
 from services.customerService import CustomerService
 from ui.components.alerts import show_success_message, show_error_message
 
-class PageCustomerForm(ft.View):
+class PageCustomerForm(ft.UserControl):
     def __init__(self, page: ft.Page, session: Session, edit_mode=False):
-        super().__init__(
-            route="/agregar_comprador" if not edit_mode else "/editar_comprador",
-            controls=[],
-            padding=20
-        )
+        super().__init__()
         self.page = page
         self.session = session
         self.edit_mode = edit_mode
@@ -128,4 +124,15 @@ class PageCustomerForm(ft.View):
     def go_back(self, e):
         if self.edit_mode:
             self.page.client_storage.remove("edit_customer_id")
-        self.page.go("/ver_compradores")
+        
+        # Usar la factory para crear la página de compradores
+        from pages.customer.page_factory import CustomerPageFactory
+        customer_page = CustomerPageFactory.create_customer_page(
+            self.page, 
+            self.session, 
+            lambda: None  # Placeholder for go_back_callback
+        )
+        
+        self.controls.clear()
+        self.controls.append(customer_page)
+        self.update()

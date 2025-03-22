@@ -16,40 +16,49 @@ class RegisterView(ft.View):
         self.page = page
         self.session = session
         self.auth_service = AuthService(session)
+        self.is_mobile = self.page.width < 600  # Breakpoint para móvil
         self.build_ui()
-    
+        self.page.on_resize = self.handle_resize  # Listener para redimensionamiento
+
     def build_ui(self):
         try:
+            # Determinar tamaños según el breakpoint
+            logo_size = 60 if self.is_mobile else 80
+            title_size = 24 if self.is_mobile else 32
+            subtitle_size = 14 if self.is_mobile else 16
+            form_width = min(self.page.width * 0.9, 400) if self.is_mobile else 400
+            field_width = form_width - 60  # Restar padding interno
+
             # Logo y título
             logo = ft.Container(
                 content=ft.Column([
                     ft.Icon(
                         name=ft.icons.STORE_ROUNDED,
-                        size=80,
+                        size=logo_size,
                         color=ft.colors.PRIMARY
                     ),
                     ft.Text(
                         "DiagSoft",
-                        size=32,
+                        size=title_size,
                         weight=ft.FontWeight.BOLD,
                         color=ft.colors.PRIMARY
                     ),
                     ft.Text(
                         "Sistema de Gestión de Ventas",
-                        size=16,
+                        size=subtitle_size,
                         color=ft.colors.ON_SURFACE_VARIANT
                     )
                 ], 
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10),
-                margin=ft.margin.only(bottom=40)
+                margin=ft.margin.only(bottom=20 if self.is_mobile else 40)
             )
 
             # Campos de registro
             self.name_field = ft.TextField(
                 label="Nombre Completo",
-                width=300,
+                width=field_width,
                 prefix_icon=ft.icons.PERSON,
                 hint_text="Ingrese su nombre completo",
                 label_style=ft.TextStyle(color=ft.colors.ON_SURFACE),
@@ -59,7 +68,7 @@ class RegisterView(ft.View):
 
             self.username_field = ft.TextField(
                 label="Usuario",
-                width=300,
+                width=field_width,
                 prefix_icon=ft.icons.ACCOUNT_CIRCLE,
                 hint_text="Ingrese un nombre de usuario",
                 label_style=ft.TextStyle(color=ft.colors.ON_SURFACE),
@@ -69,7 +78,7 @@ class RegisterView(ft.View):
 
             self.email_field = ft.TextField(
                 label="Correo Electrónico",
-                width=300,
+                width=field_width,
                 prefix_icon=ft.icons.EMAIL,
                 hint_text="Ingrese su correo electrónico",
                 label_style=ft.TextStyle(color=ft.colors.ON_SURFACE),
@@ -79,7 +88,7 @@ class RegisterView(ft.View):
 
             self.password_field = ft.TextField(
                 label="Contraseña",
-                width=300,
+                width=field_width,
                 prefix_icon=ft.icons.LOCK,
                 password=True,
                 can_reveal_password=True,
@@ -91,7 +100,7 @@ class RegisterView(ft.View):
 
             self.confirm_password_field = ft.TextField(
                 label="Confirmar Contraseña",
-                width=300,
+                width=field_width,
                 prefix_icon=ft.icons.LOCK_OUTLINE,
                 password=True,
                 can_reveal_password=True,
@@ -104,7 +113,7 @@ class RegisterView(ft.View):
             # Botón de registro
             register_button = ft.ElevatedButton(
                 "Registrarse",
-                width=300,
+                width=field_width,
                 icon=ft.icons.APP_REGISTRATION,
                 on_click=self.handle_register,
                 style=ft.ButtonStyle(
@@ -123,19 +132,20 @@ class RegisterView(ft.View):
             self.error_text = ft.Text(
                 "",
                 color=ft.colors.ERROR,
-                visible=False
+                visible=False,
+                size=12 if self.is_mobile else 14
             )
 
             # Formulario de registro
-            register_form = ft.Container(
+            self.register_form = ft.Container(
                 content=ft.Column([
                     ft.Text(
                         "Crear Cuenta",
-                        size=24,
+                        size=20 if self.is_mobile else 24,
                         weight=ft.FontWeight.BOLD,
                         color=ft.colors.ON_SURFACE
                     ),
-                    ft.Container(height=20),
+                    ft.Container(height=15 if self.is_mobile else 20),
                     self.name_field,
                     self.username_field,
                     self.email_field,
@@ -148,11 +158,17 @@ class RegisterView(ft.View):
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=15),
-                padding=30,
+                spacing=10 if self.is_mobile else 15),
+                padding=30 if self.is_mobile else 30,
                 border_radius=10,
                 border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
-                width=400
+                width=form_width,
+                bgcolor=ft.colors.SURFACE,
+                shadow=ft.BoxShadow(
+                    spread_radius=1,
+                    blur_radius=5,
+                    color=ft.colors.with_opacity(0.2, ft.colors.BLACK)
+                )
             )
 
             # Contenedor principal
@@ -160,10 +176,11 @@ class RegisterView(ft.View):
                 ft.Container(
                     content=ft.Column([
                         logo,
-                        register_form
+                        self.register_form
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=20 if self.is_mobile else 30),
                     alignment=ft.alignment.center,
                     expand=True,
                     bgcolor=ft.colors.SURFACE
@@ -182,14 +199,12 @@ class RegisterView(ft.View):
 
     def handle_register(self, e):
         try:
-            # Obtener valores de los campos
             name = self.name_field.value
             username = self.username_field.value
             email = self.email_field.value
             password = self.password_field.value
             confirm_password = self.confirm_password_field.value
 
-            # Validar campos
             if not all([name, username, email, password, confirm_password]):
                 self.show_error("Por favor complete todos los campos")
                 return
@@ -198,7 +213,6 @@ class RegisterView(ft.View):
                 self.show_error("Las contraseñas no coinciden")
                 return
 
-            # Crear usuario
             user_data = {
                 "username": username,
                 "email": email,
@@ -218,3 +232,26 @@ class RegisterView(ft.View):
         self.error_text.value = message
         self.error_text.visible = True
         self.update()
+
+    def handle_resize(self, e):
+        new_is_mobile = self.page.width < 600
+        if new_is_mobile != self.is_mobile:
+            self.is_mobile = new_is_mobile
+            self.build_ui()
+            self.update()
+        elif self.register_form:
+            # Ajustar dinámicamente el ancho del formulario en pantallas no móviles
+            new_form_width = min(self.page.width * 0.9, 400)
+            self.register_form.width = new_form_width
+            self.name_field.width = new_form_width - 60
+            self.username_field.width = new_form_width - 60
+            self.email_field.width = new_form_width - 60
+            self.password_field.width = new_form_width - 60
+            self.confirm_password_field.width = new_form_width - 60
+            self.register_form.content.controls[2].width = new_form_width - 60  # name_field
+            self.register_form.content.controls[3].width = new_form_width - 60  # username_field
+            self.register_form.content.controls[4].width = new_form_width - 60  # email_field
+            self.register_form.content.controls[5].width = new_form_width - 60  # password_field
+            self.register_form.content.controls[6].width = new_form_width - 60  # confirm_password_field
+            self.register_form.content.controls[9].width = new_form_width - 60  # register_button
+            self.update()

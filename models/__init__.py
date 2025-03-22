@@ -3,6 +3,8 @@ from .CommercialInvoice import CommercialInvoice
 from .User import User
 from .Administrator import Administrator
 from .Employee import Employee
+from .Category import Category
+from .Subcategory import Subcategory
 from .Product import Product
 from .Stock import Stock
 from .Supplier import Supplier

@@ -8,15 +8,8 @@ from database.connection import Base
 # Es importante importar Category antes que Product debido a la relación de clave foránea
 from models.Category import Category
 from models.Supplier import Supplier
-from models.User import User, UserRole
 from models.Customer import Customer
 from models.Product import Product
-from models.Sale import Sale
-from models.SaleItem import SaleItem
-from models.Stock import Stock
-from models.CommercialInvoice import CommercialInvoice
-from models.Administrator import Administrator
-from models.Employee import Employee
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +18,7 @@ logger = logging.getLogger(__name__)
 def init_database():
     try:
         # Crear el motor de base de datos
-        engine = create_engine('sqlite:///ventas_new.db')
+        engine = create_engine('sqlite:///ventas.db')
         
         # Crear todas las tablas
         Base.metadata.create_all(engine)
@@ -165,8 +158,8 @@ def init_database():
 
 if __name__ == "__main__":
     # Eliminar la base de datos si ya existe
-    if os.path.exists("ventas_new.db"):
-        os.remove("ventas_new.db")
+    if os.path.exists("ventas.db"):
+        os.remove("ventas.db")
         logger.info("Base de datos anterior eliminada")
     
     # Inicializar la base de datos

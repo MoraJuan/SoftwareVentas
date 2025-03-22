@@ -1,140 +1,127 @@
 import flet as ft
-from ui.components.alerts import show_error_message, show_success_message
-from ui.components.navigation import create_navigation_rail, ThemeIconButton
+from pages.supplier.PageSupplier import PageSupplier
+from pages.customer.PageCustomer import PageCustomer
+from pages.expences.PageExpences import PageExpense
+from ui.components.alerts import show_error_message
 import logging
 
-class PageReports(ft.View):
+class PageReports(ft.UserControl):
     def __init__(self, page: ft.Page, session):
-        super().__init__(
-            route="/ver_reportes",
-            padding=0,
-            bgcolor=ft.colors.SURFACE
-        )
+        super().__init__()
         self.page = page
         self.session = session
+        self.is_mobile = self.page.width < 600
+        self.current_view = ft.Column(expand=True)  # Contenedor para vistas hijas
         self.build_ui()
+        self.page.on_resize = self.handle_resize
 
     def build_ui(self):
         try:
-            # Crear navegación
-            self.navigation_rail = create_navigation_rail(3, self.page)  # Índice 3 para Reportes
+            # Títulos
+            title = ft.Text(
+                "Reportes",
+                size=20 if self.is_mobile else 24,
+                weight=ft.FontWeight.BOLD,
+                color=ft.colors.ON_SURFACE
+            )
+            subtitle = ft.Text(
+                "Selecciona un reporte",
+                size=14 if self.is_mobile else 16,
+                color=ft.colors.ON_SURFACE_VARIANT
+            )
 
-            # Crear botón de tema
-            self.theme_button = ThemeIconButton(self.page)
-
-            # Título principal con botón de tema
-            header = ft.Container(
-                content=ft.Row([
-                    ft.Text(
-                        "Reportes", 
-                        size=24, 
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.colors.ON_SURFACE
+            # Botones de navegación con íconos
+            report_actions = ft.Column(
+                [
+                    ft.ElevatedButton(
+                        content=ft.Row([
+                            ft.Icon(ft.icons.BUSINESS, color=ft.colors.PRIMARY),
+                            ft.Text("Proveedores", color=ft.colors.ON_SURFACE)
+                        ]),
+                        width=min(self.page.width * 0.8, 300) if self.is_mobile else 300,
+                        height=50,
+                        on_click=lambda _: self.show_suppliers()
                     ),
-                    ft.Container(expand=True),
-                    self.theme_button
-                ]),
-                padding=ft.padding.only(right=20, bottom=20)
+                    ft.ElevatedButton(
+                        content=ft.Row([
+                            ft.Icon(ft.icons.PEOPLE, color=ft.colors.PRIMARY),
+                            ft.Text("Clientes", color=ft.colors.ON_SURFACE)
+                        ]),
+                        width=min(self.page.width * 0.8, 300) if self.is_mobile else 300,
+                        height=50,
+                        on_click=lambda _: self.show_customers()
+                    ),
+                    ft.ElevatedButton(
+                        content=ft.Row([
+                            ft.Icon(ft.icons.MONEY_OFF, color=ft.colors.PRIMARY),
+                            ft.Text("Gastos", color=ft.colors.ON_SURFACE)
+                        ]),
+                        width=min(self.page.width * 0.8, 300) if self.is_mobile else 300,
+                        height=50,
+                        on_click=lambda _: self.show_expenses()
+                    )
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15
             )
 
             # Contenido principal
-            main_content = ft.Column([
-                header,
-                ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
-                self.build_reports_section()
-            ], spacing=0, scroll=ft.ScrollMode.AUTO)
+            content_column = ft.Column(
+                [
+                    title,
+                    subtitle,
+                    ft.Container(height=20),
+                    report_actions
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                scroll=ft.ScrollMode.AUTO,
+                expand=True
+            )
 
-            # Contenedor principal
-            self.controls = [
-                ft.Container(
-                    content=ft.Row([
-                        self.navigation_rail,
-                        ft.VerticalDivider(width=1, color=ft.colors.OUTLINE_VARIANT),
-                        ft.Container(
-                            padding=20,
-                            content=main_content,
-                            expand=True
-                        )
-                    ]),
-                    expand=True
-                )
-            ]
+            self.main_content = ft.Container(
+                content=content_column,
+                padding=10 if self.is_mobile else 20,
+                expand=True
+            )
+            self.controls = [self.main_content]
 
         except Exception as e:
-            logging.error(f"Error construyendo UI: {str(e)}")
-            show_error_message(self.page, f"Error construyendo UI: {str(e)}")
+            logging.error(f"Error construyendo UI de reportes: {str(e)}")
+            self.controls = [ft.Text(f"Error al cargar la página de reportes: {str(e)}", color=ft.colors.ERROR)]
 
-    def build_reports_section(self):
-        try:
-            # Crear tarjetas de reportes
-            return ft.ResponsiveRow([
-                self.create_report_card(
-                    "Ventas",
-                    "Reportes detallados de ventas por período",
-                    ft.icons.TRENDING_UP,
-                    "/ver_reportes/ventas"
-                ),
-                self.create_report_card(
-                    "Gastos",
-                    "Gestión y reportes de gastos",
-                    ft.icons.MONEY_OFF,
-                    "/ver_reportes/gastos"
-                ),
-                # self.create_report_card(
-                #     "Inventario",
-                #     "Estado y movimientos del inventario",
-                #     ft.icons.INVENTORY_2,
-                #     "/ver_inventario"
-                # ),
-                self.create_report_card(
-                    "Clientes",
-                    "Análisis de clientes y compras",
-                    ft.icons.PEOPLE,
-                    "/ver_compradores"
-                ),
-            ])
-            
-        except Exception as e:
-            logging.error(f"Error construyendo sección de reportes: {str(e)}")
-            return ft.Text(f"Error: {str(e)}", color=ft.colors.ERROR)
+    def show_suppliers(self):
+        self.controls.clear()
+        self.controls.append(PageSupplier(self.page, self.session, self.go_back))
+        self.update()
 
-    def create_report_card(self, title, description, icon, route):
-        return ft.Container(
-            content=ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Icon(icon, size=36, color=ft.colors.PRIMARY),
-                            ft.Container(width=10),
-                            ft.Column([
-                                ft.Text(
-                                    title,
-                                    size=18,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=ft.colors.ON_SURFACE
-                                ),
-                                ft.Text(
-                                    description,
-                                    size=14,
-                                    color=ft.colors.ON_SURFACE_VARIANT
-                                ),
-                            ], spacing=5, expand=True),
-                        ]),
-                        ft.Container(height=10),
-                        ft.ElevatedButton(
-                            "Ver Reporte",
-                            icon=ft.icons.ARROW_FORWARD,
-                            on_click=lambda _, r=route: self.page.go(r),
-                            style=ft.ButtonStyle(
-                                color=ft.colors.ON_PRIMARY,
-                                bgcolor=ft.colors.PRIMARY
-                            )
-                        ),
-                    ], spacing=10),
-                    padding=15
-                ),
-                elevation=2
-            ),
-            col={"sm": 12, "md": 6, "lg": 3},
-            padding=5
-        )
+    def show_customers(self):
+        self.controls.clear()
+        self.controls.append(PageCustomer(self.page, self.session, self.go_back))
+        self.update()
+
+    def show_expenses(self):
+        self.controls.clear()
+        self.controls.append(PageExpense(self.page, self.session, self.go_back))
+        self.update()
+
+    def go_back(self):
+        self.controls.clear()
+        self.controls.append(self.main_content)
+        self.update()
+
+    def handle_resize(self, e):
+        new_is_mobile = self.page.width < 600
+        if new_is_mobile != self.is_mobile:
+            self.is_mobile = new_is_mobile
+            self.build_ui()
+            self.go_back()  # Volver a la vista principal al redimensionar
+            self.update()
+        else:
+            for button in self.main_content.content.controls[3].controls:
+                button.width = min(self.page.width * 0.8, 300) if self.is_mobile else 300
+            self.update()
+
+    def build(self):
+        return ft.Column(self.controls, expand=True)
