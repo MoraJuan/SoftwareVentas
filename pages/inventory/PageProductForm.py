@@ -14,26 +14,56 @@ class PageProductForm(ft.UserControl):
         super().__init__()
         self.page = page
         self.session = session
-        self.is_mobile = self.page.width < 600
+        
+        # Verificar que la página sea válida antes de acceder a su ancho
+        if self.page is None:
+            logging.error("Error: page es None en __init__ de PageProductForm")
+            self.is_mobile = True  # Valor por defecto
+            self.is_tablet = False
+        else:
+            self.is_mobile = self.page.width < 600
+            self.is_tablet = 600 <= self.page.width < 1024
+            
         self.edit_mode = edit_mode
         self.all_products = []
         self.table = None
         self.table_container = None
         self.search_field = None
         
+        # Inicializar campos que serán usados por handle_resize
+        self.form_container = None
+        self.name_input = None
+        self.price_input = None
+        self.stock_input = None
+        self.description_input = None
+        self.category_input = None
+        self.subcategory_input = None
+        self.supplier_input = None
+        self.barcode_input = None
+        self.code_input = None
+        self.manage_categories_button = None
+        self.manage_suppliers_button = None
+        
         # Inicializar servicios
-        self.product_service = ProductService(session)
-        self.category_service = CategoryService(session)
-        self.subcategory_service = SubcategoryService(session)
-        self.supplier_service = SupplierService(session)
+        try:
+            self.product_service = ProductService(session)
+            self.category_service = CategoryService(session)
+            self.subcategory_service = SubcategoryService(session)
+            self.supplier_service = SupplierService(session)
+            
+            # Cargar datos
+            self.categories = self.category_service.get_active_categories() or []
+            self.subcategories = []
+            self.suppliers = self.supplier_service.get_all_suppliers() or []
+        except Exception as e:
+            logging.error(f"Error al inicializar servicios: {str(e)}")
+            self.categories = []
+            self.subcategories = []
+            self.suppliers = []
         
-        # Cargar datos
-        self.categories = self.category_service.get_active_categories()
-        self.subcategories = []
-        self.suppliers = self.supplier_service.get_all_suppliers()
-        
-        # Configurar eventos
-        self.page.on_resize = self.handle_resize
+        # Configurar eventos solo si la página es válida
+        if self.page is not None:
+            self.page.on_resize = self.handle_resize
         
         # Construir UI
         self.build_ui()
@@ -43,11 +73,74 @@ class PageProductForm(ft.UserControl):
             self.load_product_data()
 
     def handle_resize(self, e):
-        # Actualizar el estado móvil
-        self.is_mobile = self.page.width < 600
-        # Reconstruir la UI
-        self.build_ui()
-        self.page.update()
+        try:
+            # Verificar que self.page no sea None antes de acceder a width
+            if not hasattr(self, 'page') or self.page is None:
+                logging.error("Error: self.page es None en handle_resize de PageProductForm")
+                return
+                
+            # Detectar cambios en el tamaño del dispositivo
+            new_is_mobile = self.page.width < 600
+            new_is_tablet = 600 <= self.page.width < 1024
+            
+            logging.info(f"Resize detectado - Ancho: {self.page.width}, Mobile: {new_is_mobile}, Tablet: {new_is_tablet}")
+            
+            # Si cambia la categoría del dispositivo, reconstruir la UI completa
+            if new_is_mobile != self.is_mobile or new_is_tablet != self.is_tablet:
+                logging.info(f"Cambiando modo de dispositivo a: {'mobile' if new_is_mobile else 'tablet' if new_is_tablet else 'desktop'}")
+                self.is_mobile = new_is_mobile
+                self.is_tablet = new_is_tablet
+                
+                # Reconstruir completamente la UI
+                self.controls.clear()
+                self.build_ui()
+                self.update()
+                return
+                
+            # Si solo cambia el tamaño pero no la categoría, ajustar componentes específicos
+            if hasattr(self, 'form_container') and self.form_container is not None:
+                try:
+                    # Recalcular anchos basados en el nuevo tamaño
+                    form_width = min(self.page.width * 0.9, 1200) if self.is_mobile else min(self.page.width * 0.7, 1200)
+                    field_width = form_width * 0.85 if self.is_mobile else 300
+                    
+                    logging.info(f"Ajustando anchos - Form: {form_width}, Field: {field_width}")
+                    
+                    # Actualizar el ancho del contenedor del formulario si existe
+                    if self.form_container is not None:
+                        self.form_container.width = form_width
+                    
+                    # Actualizar anchos de los campos si están disponibles
+                    for field_name in ['name_input', 'price_input', 'stock_input', 'description_input', 
+                                      'category_input', 'subcategory_input', 'supplier_input', 
+                                      'barcode_input', 'code_input']:
+                        if hasattr(self, field_name) and getattr(self, field_name) is not None:
+                            field = getattr(self, field_name)
+                            if hasattr(field, 'width'):
+                                if field_name in ['price_input', 'stock_input'] and not self.is_mobile:
+                                    field.width = 140
+                                else:
+                                    field.width = field_width
+                    
+                    # Actualizar texto de botones según el dispositivo
+                    if hasattr(self, 'manage_categories_button') and self.manage_categories_button is not None:
+                        self.manage_categories_button.text = "" if self.is_mobile else "Gestionar Categorías"
+                        self.manage_categories_button.tooltip = "Gestionar Categorías" if self.is_mobile else None
+                    
+                    if hasattr(self, 'manage_suppliers_button') and self.manage_suppliers_button is not None:
+                        self.manage_suppliers_button.text = "" if self.is_mobile else "Gestionar Proveedores"
+                        self.manage_suppliers_button.tooltip = "Gestionar Proveedores" if self.is_mobile else None
+                    
+                    # Forzar actualización completa
+                    self.update()
+                except Exception as e:
+                    logging.error(f"Error al ajustar campos durante resize: {str(e)}")
+                    import traceback
+                    logging.error(traceback.format_exc())
+        except Exception as e:
+            logging.error(f"Error en handle_resize: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
 
     def build_ui(self):
         try:
@@ -58,46 +151,105 @@ class PageProductForm(ft.UserControl):
 
             content_column = ft.Column([
                 ft.Text(
-                        title,
-                        size=20 if self.is_mobile else 24,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.colors.ON_SURFACE
-                    ),
+                    title,
+                    size=20 if self.is_mobile else 24,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.colors.ON_SURFACE
+                ),
                 self.create_form_layout()
-                ])
+            ], scroll=None, expand=True)  # Quitar scroll del content_column
 
+            # Contenedor principal con scroll
+            main_container = ft.Container(
+                content=content_column,
+                expand=True,
+                padding=10 if self.is_mobile else 20
+            )
+
+            # Columna con scroll que envuelve todo
             self.controls = [
-                ft.Container(
-                    content=content_column,
-                    padding=10 if self.is_mobile else 20
+                ft.Column(
+                    [main_container],
+                    scroll=ft.ScrollMode.AUTO,
+                    expand=True,
+                    alignment=ft.MainAxisAlignment.START  # Alinear al inicio para evitar espacios en blanco
                 )
             ]
-
         except Exception as e:
-            logging.error(f"Error construyendo UI de inventario: {str(e)}")
-            self.controls = [ft.Text(f"Error al cargar el inventario: {str(e)}", color=ft.colors.ERROR)]
-        
+            logging.error(f"Error en build_ui: {str(e)}")
+            self.controls = [
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(name=ft.icons.ERROR, color=ft.colors.ERROR, size=64),
+                        ft.Text(
+                            "Error al cargar el formulario",
+                            size=20,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.colors.ON_SURFACE
+                        ),
+                        ft.Text(
+                            str(e),
+                            color=ft.colors.ON_SURFACE
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    alignment=ft.alignment.center,
+                    expand=True
+                )
+            ]
+    
     def create_form_layout(self):
-        # Información básica del producto
+        try:
+            # Información básica del producto
+            # Calcular anchos responsivos
+            form_width = min(self.page.width * 0.9, 1200) if self.is_mobile else min(self.page.width * 0.7, 1200)
+            field_width = form_width * 0.85 if self.is_mobile else 300
+            
+            logging.info(f"Creando formulario - Ancho: {self.page.width}, Form width: {form_width}, Field width: {field_width}")
+            
+            # Envolver en un Column sin scroll ya que el scroll está en el contenedor principal
+            return ft.Column([
+                self._create_form_content(form_width, field_width)
+            ], expand=True, alignment=ft.MainAxisAlignment.START)
+        except Exception as e:
+            logging.error(f"Error creando formulario: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return ft.Column([
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(name=ft.icons.ERROR, color=ft.colors.ERROR, size=48),
+                        ft.Text("Error al crear el formulario", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.ERROR),
+                        ft.Text(str(e), color=ft.colors.ERROR)
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+                    padding=20,
+                    alignment=ft.alignment.center
+                )
+            ], expand=True)
+            
+    def _create_form_content(self, form_width, field_width):
+        """Método auxiliar para crear el contenido del formulario"""
+        # Crear campos del formulario (código actual en create_form_layout)
         self.name_input = ft.TextField(
             label="Nombre del Producto",
-            width=300,
+            width=field_width,
         )
         self.price_input = ft.TextField(
             label="Precio",
-            width=300,
+            width=field_width if self.is_mobile else 140,
             keyboard_type=ft.KeyboardType.NUMBER,
+            value="0",  # Valor por defecto para evitar errores
         )
         self.stock_input = ft.TextField(
             label="Stock",
-            width=300,
+            width=field_width if self.is_mobile else 140,
             keyboard_type=ft.KeyboardType.NUMBER,
+            value="0",  # Valor por defecto para evitar errores
         )
 
         # Información adicional del producto
         self.description_input = ft.TextField(
             label="Descripción",
-            width=300,
+            width=field_width,
             multiline=True,
             min_lines=3,
             max_lines=5
@@ -108,7 +260,7 @@ class PageProductForm(ft.UserControl):
             "0", "Seleccione una categoría")]
 
         # Ordenar categorías por nombre antes de añadirlas al dropdown
-        sorted_categories = sorted(self.categories, key=lambda cat: cat.name)
+        sorted_categories = sorted(self.categories, key=lambda cat: cat.name) if self.categories else []
 
         for category in sorted_categories:
             category_options.append(ft.dropdown.Option(
@@ -116,7 +268,7 @@ class PageProductForm(ft.UserControl):
 
         self.category_input = ft.Dropdown(
             label="Categoría",
-            width=300,
+            width=field_width,
             options=category_options,
             value="0",  # Valor por defecto
             on_change=self.update_subcategories  # Añadir evento para actualizar subcategorías
@@ -127,7 +279,7 @@ class PageProductForm(ft.UserControl):
         
         self.subcategory_input = ft.Dropdown(
             label="Subcategoría",
-            width=300,
+            width=field_width,
             options=subcategory_options,
             value="0"  # Valor por defecto
         )
@@ -143,45 +295,49 @@ class PageProductForm(ft.UserControl):
                     
         self.supplier_input = ft.Dropdown(
             label="Proveedor",
-            width=300,
+            width=field_width,
             options=supplier_options,
             value="0"  # Valor por defecto
         )
 
-        # Botón para gestionar categorías
+        # Botón para gestionar categorías - adaptado para móvil
+        button_text = "" if self.is_mobile else "Gestionar Categorías"
         self.manage_categories_button = ft.OutlinedButton(
-            text="Gestionar Categorías",
+            text=button_text,
             icon=ft.icons.CATEGORY,
+            tooltip="Gestionar Categorías" if self.is_mobile else None,
             on_click=lambda _: self.page.go("/categorias")
         )
 
-        # Botón para gestionar proveedores
+        # Botón para gestionar proveedores - adaptado para móvil
+        button_text_supplier = "" if self.is_mobile else "Gestionar Proveedores"
         self.manage_suppliers_button = ft.OutlinedButton(
-            text="Gestionar Proveedores",
+            text=button_text_supplier,
             icon=ft.icons.BUSINESS,
+            tooltip="Gestionar Proveedores" if self.is_mobile else None,
             on_click=lambda _: self.page.go("/proveedores")
         )
 
         # Otros campos
         self.barcode_input = ft.TextField(
             label="Código de Barras",
-            width=300,
+            width=field_width,
         )
         self.code_input = ft.TextField(
             label="Código Interno",
-            width=300,
+            width=field_width,
         )
 
         # Ajustes de inventario
         self.adjustment_input = ft.TextField(
             label="Cantidad a ajustar",
-            width=300,
+            width=field_width,
             keyboard_type=ft.KeyboardType.NUMBER,
             value="0"
         )
         self.reason_input = ft.TextField(
             label="Motivo del ajuste",
-            width=300,
+            width=field_width,
             hint_text="Razón del ajuste de inventario"
         )
 
@@ -197,16 +353,6 @@ class PageProductForm(ft.UserControl):
             on_click=self.add_product
         )
 
-        # Crear un layout responsivo para dispositivos móviles y escritorio
-        form_width = min(self.page.width * 0.9, 1200) if self.is_mobile else min(self.page.width * 0.7, 1200)
-        field_width = form_width * 0.9 if self.is_mobile else 300
-
-        # Actualizar el ancho de los campos según el tamaño de la pantalla
-        for field in [self.name_input, self.price_input, self.stock_input, 
-                     self.description_input, self.category_input, self.subcategory_input,
-                     self.supplier_input, self.barcode_input, self.code_input]:
-            field.width = field_width
-
         # Sección de información básica
         basic_info_section = ft.Container(
             content=ft.Column([
@@ -214,14 +360,15 @@ class PageProductForm(ft.UserControl):
                         weight=ft.FontWeight.BOLD, size=16),
                 self.name_input,
                 ft.Row([
-                    ft.Column([self.price_input], expand=True),
-                    ft.Column([self.stock_input], expand=True)
+                    ft.Column([self.price_input], expand=self.is_tablet),
+                    ft.Column([self.stock_input], expand=self.is_tablet)
                 ]) if not self.is_mobile else ft.Column([self.price_input, self.stock_input]),
             ], spacing=20),
             padding=20,
             border=ft.border.all(1, ft.colors.OUTLINE),
             border_radius=10,
-            margin=ft.margin.only(bottom=20)
+            margin=ft.margin.only(bottom=20),
+            width=form_width
         )
 
         # Sección de categorías y detalles
@@ -238,14 +385,15 @@ class PageProductForm(ft.UserControl):
                         # Espaciador para alinear con el dropdown
                         ft.Container(height=25),
                         self.manage_categories_button,
-                    ]) if not self.is_mobile else ft.Container()
+                    ], alignment=ft.MainAxisAlignment.START) if not self.is_mobile else ft.Container()
                 ]),
                 self.manage_categories_button if self.is_mobile else ft.Container(),
             ], spacing=20),
             padding=20,
             border=ft.border.all(1, ft.colors.OUTLINE),
             border_radius=10,
-            margin=ft.margin.only(bottom=20)
+            margin=ft.margin.only(bottom=20),
+            width=form_width
         )
 
         # Sección de detalles adicionales
@@ -280,7 +428,8 @@ class PageProductForm(ft.UserControl):
             padding=20,
             border=ft.border.all(1, ft.colors.OUTLINE),
             border_radius=10,
-            margin=ft.margin.only(bottom=20)
+            margin=ft.margin.only(bottom=20),
+            width=form_width
         )
 
         # Botones de acción
@@ -290,59 +439,70 @@ class PageProductForm(ft.UserControl):
         ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
         # Construir formulario completo
-        form_container = ft.Container(
+        self.form_container = ft.Container(
             content=ft.Column([
-                ft.Text("Editar Producto" if self.edit_mode else "Nuevo Producto",
-                       weight=ft.FontWeight.BOLD, size=20),
                 basic_info_section,
                 categories_section,
                 additional_info_section,
                 action_buttons
             ]),
             width=form_width,
-            padding=10
+            padding=10,
+            alignment=ft.alignment.center
         )
-
-        # Envolver en un ScrollView para asegurar que todo el contenido sea accesible
-        return ft.Column([
-            ft.Container(
-                content=form_container,
-                alignment=ft.alignment.center
-            )
-        ], scroll=ft.ScrollMode.AUTO, expand=True)
+        
+        return self.form_container
     
     def update_subcategories(self, e):
         """Actualiza las opciones de subcategorías según la categoría seleccionada."""
         try:
+            # Verificar si el componente está inicializado
+            if not hasattr(self, 'category_input') or not self.category_input:
+                logging.warning("category_input no está inicializado")
+                return
+                
+            if not hasattr(self, 'subcategory_input') or not self.subcategory_input:
+                logging.warning("subcategory_input no está inicializado")
+                return
+                
             # Obtener el ID de la categoría seleccionada
-            category_id = int(self.category_input.value or 0)
+            category_id = 0
+            try:
+                category_id = int(self.category_input.value or 0)
+            except (ValueError, TypeError) as e:
+                logging.error(f"Error al convertir category_id: {str(e)}")
+                category_id = 0
+                
             logging.info(f"Actualizando subcategorías para categoría ID: {category_id}")
             
             # Inicializar las opciones con el valor por defecto
             subcategory_options = [ft.dropdown.Option("0", "Seleccione una subcategoría")]
             
-            if category_id >= 0:
-                # Obtener las subcategorías activas para esta categoría
-                logging.info(f"Consultando subcategorías para categoría ID: {category_id}")
-                self.subcategories = self.subcategory_service.get_active_subcategories(category_id=category_id)
-                
-                # Ordenar subcategorías por nombre
-                if self.subcategories:
-                    sorted_subcategories = sorted(self.subcategories, key=lambda sub: sub.name)
-                    for subcategory in sorted_subcategories:
-                        
+            if category_id > 0:
+                try:
+                    # Obtener las subcategorías activas para esta categoría
+                    logging.info(f"Consultando subcategorías para categoría ID: {category_id}")
+                    self.subcategories = self.subcategory_service.get_active_subcategories(category_id=category_id) or []
+                    
+                    # Ordenar subcategorías por nombre
+                    if self.subcategories:
+                        sorted_subcategories = sorted(self.subcategories, key=lambda sub: sub.name)
+                        for subcategory in sorted_subcategories:
+                            subcategory_options.append(ft.dropdown.Option(
+                                str(subcategory.id), subcategory.name))
+                    else:
+                        logging.warning(f"No se encontraron subcategorías para la categoría ID: {category_id}")
+                        # Agregar una opción que indique que no hay subcategorías
                         subcategory_options.append(ft.dropdown.Option(
-                            str(subcategory.id), subcategory.name))
-                else:
-                    logging.warning(f"No se encontraron subcategorías para la categoría ID: {category_id}")
-                    # Agregar una opción que indique que no hay subcategorías
+                            "-1", "No hay subcategorías disponibles"))
+                except Exception as e:
+                    logging.error(f"Error al consultar subcategorías: {str(e)}")
                     subcategory_options.append(ft.dropdown.Option(
-                        "-1", "No hay subcategorías disponibles"))
+                        "-1", "Error al cargar subcategorías"))
             else:
                 # Indicar que primero se debe seleccionar una categoría
                 subcategory_options = [ft.dropdown.Option("0", "Primero seleccione una categoría")]
             
-            logging.info(f"Subcategorías: {subcategory_options}")
             # Actualizar las opciones y resetear el valor
             self.subcategory_input.options = subcategory_options
             self.subcategory_input.value = "0"
@@ -359,15 +519,48 @@ class PageProductForm(ft.UserControl):
     
     def add_product(self, e):
         try:
-            name = self.name_input.value
-            price = float(self.price_input.value or 0)
-            stock = int(self.stock_input.value or 0)
-            description = self.description_input.value
-            subcategory_id = int(self.subcategory_input.value or 0)
-            category_id = int(self.category_input.value or 0)
-            supplier_id = int(self.supplier_input.value or 0)
-            barcode = self.barcode_input.value
-            code = self.code_input.value
+            # Verificar que todos los campos estén inicializados
+            required_fields = ['name_input', 'price_input', 'stock_input', 'description_input', 
+                              'category_input', 'subcategory_input', 'supplier_input',
+                              'barcode_input', 'code_input']
+            
+            for field in required_fields:
+                if not hasattr(self, field) or getattr(self, field) is None:
+                    show_error_message(self.page, f"Error: El campo {field} no está inicializado")
+                    return
+            
+            name = self.name_input.value or ""
+            
+            # Manejar valores numéricos con seguridad
+            try:
+                price = float(self.price_input.value or 0)
+            except (ValueError, TypeError):
+                price = 0
+                
+            try:
+                stock = int(self.stock_input.value or 0)
+            except (ValueError, TypeError):
+                stock = 0
+                
+            description = self.description_input.value or ""
+            
+            try:
+                subcategory_id = int(self.subcategory_input.value or 0)
+            except (ValueError, TypeError):
+                subcategory_id = 0
+                
+            try:
+                category_id = int(self.category_input.value or 0)
+            except (ValueError, TypeError):
+                category_id = 0
+                
+            try:
+                supplier_id = int(self.supplier_input.value or 0)
+            except (ValueError, TypeError):
+                supplier_id = 0
+                
+            barcode = self.barcode_input.value or ""
+            code = self.code_input.value or ""
 
             if not name:
                 show_error_message(
@@ -408,6 +601,9 @@ class PageProductForm(ft.UserControl):
             show_error_message(
                 self.page, "Por favor ingrese valores numéricos válidos para precio y stock.")
         except Exception as e:
+            logging.error(f"Error en add_product: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
             show_error_message(
                 self.page, f"Error al {'actualizar' if self.edit_mode else 'agregar'} el producto: {str(e)}")
     
@@ -416,17 +612,29 @@ class PageProductForm(ft.UserControl):
         self.page.go("/ver_inventario")
     
     def clear_inputs(self):
-        self.name_input.value = ""
-        self.price_input.value = ""
-        self.stock_input.value = ""
-        self.description_input.value = ""
-        self.category_input.value = "0"
-        self.subcategory_input.value = "0"
-        self.barcode_input.value = ""
-        self.supplier_input.value = "0"
-        self.code_input.value = ""
-        self.adjustment_input.value = "0"
-        self.reason_input.value = ""
+        # Verificar que los campos estén inicializados antes de limpiarlos
+        if hasattr(self, 'name_input') and self.name_input:
+            self.name_input.value = ""
+        if hasattr(self, 'price_input') and self.price_input:
+            self.price_input.value = ""
+        if hasattr(self, 'stock_input') and self.stock_input:
+            self.stock_input.value = ""
+        if hasattr(self, 'description_input') and self.description_input:
+            self.description_input.value = ""
+        if hasattr(self, 'category_input') and self.category_input:
+            self.category_input.value = "0"
+        if hasattr(self, 'subcategory_input') and self.subcategory_input:
+            self.subcategory_input.value = "0"
+        if hasattr(self, 'barcode_input') and self.barcode_input:
+            self.barcode_input.value = ""
+        if hasattr(self, 'supplier_input') and self.supplier_input:
+            self.supplier_input.value = "0"
+        if hasattr(self, 'code_input') and self.code_input:
+            self.code_input.value = ""
+        if hasattr(self, 'adjustment_input') and self.adjustment_input:
+            self.adjustment_input.value = "0"
+        if hasattr(self, 'reason_input') and self.reason_input:
+            self.reason_input.value = ""
         self.page.update()
     
     def load_product_data(self):
@@ -438,50 +646,63 @@ class PageProductForm(ft.UserControl):
                 product = self.product_service.get_product_by_id(product_id)
                 if product:
                     self.selected_product = product
-                    # Cargar los datos en los campos del formulario
-                    self.name_input.value = product.name
-                    self.price_input.value = str(product.price)
-                    self.stock_input.value = str(product.stock)
-                    self.description_input.value = product.description or ""
+                    
+                    # Verificar que los campos estén inicializados antes de asignar valores
+                    if hasattr(self, 'name_input') and self.name_input:
+                        self.name_input.value = product.name or ""
+                    if hasattr(self, 'price_input') and self.price_input:
+                        self.price_input.value = str(product.price or 0)
+                    if hasattr(self, 'stock_input') and self.stock_input:
+                        self.stock_input.value = str(product.stock or 0)
+                    if hasattr(self, 'description_input') and self.description_input:
+                        self.description_input.value = product.description or ""
 
                     # Manejar la categoría - podría ser un ID o un nombre
-                    if product.category_id:
-                        self.category_input.value = str(product.category_id)
-                        # Actualizar subcategorías después de establecer la categoría
-                        self.update_subcategories(None)
-                    else:
-                        # Si no es un ID, buscar la categoría por nombre o usar el valor por defecto
-                        found = False
-                        for category in self.categories:
-                            if category.name == product.category:
-                                self.category_input.value = str(category.id)
-                                found = True
-                                break
-                        if not found:
-                            self.category_input.value = "0"  # Valor por defecto si no se encuentra
-                        # Actualizar subcategorías después de establecer la categoría
-                        self.update_subcategories(None)
+                    if hasattr(self, 'category_input') and self.category_input:
+                        if product.category_id:
+                            self.category_input.value = str(product.category_id)
+                            # Actualizar subcategorías después de establecer la categoría
+                            self.update_subcategories(None)
+                        else:
+                            # Si no es un ID, buscar la categoría por nombre o usar el valor por defecto
+                            found = False
+                            for category in self.categories:
+                                if hasattr(product, 'category') and category.name == product.category:
+                                    self.category_input.value = str(category.id)
+                                    found = True
+                                    break
+                            if not found:
+                                self.category_input.value = "0"  # Valor por defecto si no se encuentra
+                            # Actualizar subcategorías después de establecer la categoría
+                            self.update_subcategories(None)
                     
-                    if product.subcategory_id:
-                        self.subcategory_input.value = str(product.subcategory_id)
-                    else:
-                        # Si no es un ID, buscar la subcategoría por nombre o usar el valor por defecto
-                        found = False
-                        for subcategory in self.subcategories:
-                            if subcategory.name == product.subcategory:
-                                self.subcategory_input.value = str(subcategory.id)
-                                found = True
-                                break
-                        if not found:
-                            self.subcategory_input.value = "0"  # Valor por defecto si no se encuentra
+                    if hasattr(self, 'subcategory_input') and self.subcategory_input:
+                        if product.subcategory_id:
+                            self.subcategory_input.value = str(product.subcategory_id)
+                        else:
+                            # Si no es un ID, buscar la subcategoría por nombre o usar el valor por defecto
+                            found = False
+                            for subcategory in self.subcategories:
+                                if hasattr(product, 'subcategory') and subcategory.name == product.subcategory:
+                                    self.subcategory_input.value = str(subcategory.id)
+                                    found = True
+                                    break
+                            if not found:
+                                self.subcategory_input.value = "0"  # Valor por defecto si no se encuentra
 
-                    if product.supplier_id:
-                        self.supplier_input.value = str(product.supplier_id)
+                    if hasattr(self, 'supplier_input') and self.supplier_input:
+                        if product.supplier_id:
+                            self.supplier_input.value = str(product.supplier_id)
 
-                    self.barcode_input.value = product.barcode or ""
-                    self.code_input.value = product.code or ""
+                    if hasattr(self, 'barcode_input') and self.barcode_input:
+                        self.barcode_input.value = product.barcode or ""
+                    if hasattr(self, 'code_input') and self.code_input:
+                        self.code_input.value = product.code or ""
 
                     self.page.update()
         except Exception as e:
+            logging.error(f"Error al cargar datos del producto: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
             show_error_message(
                 self.page, f"Error al cargar los datos del producto: {str(e)}")

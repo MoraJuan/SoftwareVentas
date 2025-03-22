@@ -5,6 +5,7 @@ from services.authService import AuthService
 from ui.components import show_error_message, show_success_message, NavigationRail
 import logging
 from pages.dashboard import PageDashboard
+from pages.sales import PageSales
 
 
 class HomeView(ft.UserControl):
@@ -38,6 +39,10 @@ class HomeView(ft.UserControl):
             self.page.on_resize = self.handle_resize
 
     def build_ui(self):
+        # Calcular dimensiones disponibles
+        available_width = self.page.width if hasattr(self.page, 'width') else 1200
+        available_height = self.page.height if hasattr(self.page, 'height') else 800
+        
         # Contenedor para el contenido principal
         self.content_container = ft.Container(
             content=self.get_dashboard_view(),
@@ -59,8 +64,12 @@ class HomeView(ft.UserControl):
                 ],
                 spacing=0,
                 expand=True,
+                # Asegurar que ocupe todo el alto disponible
+                height=available_height,
+                width=available_width,
             )
         else:
+            # Para tablets y desktop
             self.layout = ft.Row(
                 controls=[
                     self.navigation_rail,  # NavigationRail a la izquierda
@@ -69,6 +78,10 @@ class HomeView(ft.UserControl):
                 ],
                 spacing=0,  # Reducir el espacio entre elementos
                 expand=True,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+                # Asegurar que ocupe todo el ancho y alto disponible
+                width=available_width,
+                height=available_height,
             )
             
         # Asignar el layout a los controles
@@ -92,14 +105,20 @@ class HomeView(ft.UserControl):
             )
 
     def get_sales_view(self):
-        return ft.Column(
-            controls=[
-                ft.Text("Ventas", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Gestión de ventas", size=16),
-            ],
-            spacing=20,
-            scroll=ft.ScrollMode.AUTO,
-        )
+        try:
+            return PageSales(self.page, self.session)
+        except Exception as e:
+            logging.error(f"Error al cargar la vista de ventas: {str(e)}")
+            return ft.Column(
+                controls=[
+                    ft.Text("Error al cargar las ventas", size=24,
+                            weight=ft.FontWeight.BOLD, color=ft.colors.ERROR),
+                    ft.Text(f"Detalles: {str(e)}",
+                            size=16, color=ft.colors.ERROR),
+                ],
+                spacing=20,
+                scroll=ft.ScrollMode.AUTO,
+            )
 
     def get_inventory_view(self):
         try:
@@ -154,9 +173,60 @@ class HomeView(ft.UserControl):
                 scroll=ft.ScrollMode.AUTO,
             )
 
+    def handle_resize(self, e):
+        # Guardar el estado actual
+        old_is_mobile = self.is_mobile
+        old_is_tablet = self.is_tablet
+        old_is_large_desktop = getattr(self, 'is_large_desktop', False)
+        
+        # Actualizar el tipo de dispositivo
+        self.determine_device_type()
+        
+        # Obtener dimensiones reales de la ventana
+        available_width = self.page.window.width if hasattr(self.page, 'window') and hasattr(self.page.window, 'width') else self.page.width
+        available_height = self.page.window.height if hasattr(self.page, 'window') and hasattr(self.page.window, 'height') else self.page.height
+        
+        # Usar valores por defecto si no se pueden determinar
+        if not available_width or available_width <= 0:
+            available_width = 1200
+        if not available_height or available_height <= 0:
+            available_height = 800
+            
+        logging.info(f"HomeView resize: Tamaño disponible: {available_width}x{available_height}px")
+        
+        # Actualizar el tamaño del contenedor de navegación en móvil si existe
+        if self.is_mobile and self.layout and isinstance(self.layout, ft.Column) and len(self.layout.controls) > 1:
+            nav_container = self.layout.controls[1]
+            if isinstance(nav_container, ft.Container):
+                nav_container.width = available_width
+                
+        # Actualizar el tamaño del layout en todos los casos
+        if self.layout:
+            self.layout.width = available_width
+            self.layout.height = available_height
+        
+        # Reconstruir completamente si cambia el tipo de dispositivo
+        if (old_is_mobile != self.is_mobile or 
+            old_is_tablet != self.is_tablet):
+            logging.info(f"HomeView: Cambio de tipo de dispositivo - mobile={self.is_mobile}, tablet={self.is_tablet}")
+            self.build_ui()  # Reconstruir el diseño
+            self.update()
+            return
+        
+        # Ajustes finos sin reconstruir toda la UI
+        if hasattr(self, 'content_container') and self.content_container is not None:
+            # Ajustar padding según el tamaño
+            padding_value = 8 if self.is_mobile else 12 if self.is_tablet else 20
+            if self.content_container.padding != padding_value:
+                self.content_container.padding = padding_value
+            
+            # Forzar actualización
+            self.update()
+
     # Manejar el cambio de vista
     def handle_navigation_change(self, index):
         try:
+            logging.info(f"Cambiando a la vista con índice: {index}")
             views = [
                 self.get_dashboard_view,
                 self.get_sales_view,
@@ -166,6 +236,7 @@ class HomeView(ft.UserControl):
             ]
             # Asegurarse de que el índice esté dentro del rango
             if 0 <= index < len(views):
+                # Crear la vista solicitada
                 view = views[index]()
                 self.content_container.content = view
                 self.update()
@@ -175,6 +246,8 @@ class HomeView(ft.UserControl):
                 self.update()
         except Exception as e:
             logging.error(f"Error al cambiar de vista: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
             show_error_message(
                 self.page, f"Error al cambiar de vista: {str(e)}")
             # Mantener la vista actual o mostrar un error
