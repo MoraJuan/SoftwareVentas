@@ -7,6 +7,7 @@ from services.saleService import SaleService
 from services.productService import ProductService
 from collections import defaultdict
 import calendar
+from ui.components.alerts import show_error_message
 
 
 class PageDashboard(ft.UserControl):
@@ -31,7 +32,6 @@ class PageDashboard(ft.UserControl):
         self.content = ft.Column(
             controls=[
                 ft.Text("Dashboard", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Resumen general", size=16),
                 self.build_dashboard_content()
             ],
             spacing=20,
@@ -526,8 +526,6 @@ class PageDashboard(ft.UserControl):
         )
         
         return ft.Column([
-            ft.Text("Actividad Reciente", size=16, weight=ft.FontWeight.BOLD),
-            # Tabs
             ft.Row(
                 [self.ventas_tab, self.inventario_tab],
                 spacing=5,
@@ -841,8 +839,7 @@ class PageDashboard(ft.UserControl):
                                     icon=ft.icons.ARROW_FORWARD_IOS,
                                     icon_size=16,
                                     tooltip="Ver detalles",
-                                    on_click=lambda _, s=sale.id: self.page.go(
-                                        f"/ver_reportes/ventas?id={s}")
+                                    on_click=lambda _, s=sale.id: self.toggle_sale_details(_, s)
                                 ),
                                 dense=True
                             )
@@ -894,8 +891,8 @@ class PageDashboard(ft.UserControl):
                                         ft.FilledButton(
                                             "Ver detalles",
                                             icon=ft.icons.VISIBILITY,
-                                            on_click=lambda _, s=sale.id: self.page.go(
-                                                f"/ver_reportes/ventas?id={s}")
+                                            on_click=lambda _, s=sale.id: self.toggle_sale_details(
+                                                e, s)
                                         )
                                     ], alignment=ft.MainAxisAlignment.END)
                                 ]),
@@ -1034,3 +1031,157 @@ class PageDashboard(ft.UserControl):
             logging.error(
                 f"Error construyendo sección de inventario reciente: {str(e)}")
             return ft.Text(f"Error: {str(e)}", color=ft.colors.ERROR)
+    
+    def toggle_sale_details(self, e, sale_id):
+        """Muestra una ventana popup con los detalles de la venta"""
+        try:
+            # Encontrar la venta por su ID
+            sale = None
+            for venta in self.sale_service.get_all_sales():
+                if venta.id == sale_id:
+                    sale = venta
+                    break
+                    
+            if not sale:
+                logging.error(f"No se encontró la venta con ID {sale_id}")
+                return
+                
+            # Formatear fecha
+            date_str = sale.date.strftime("%d/%m/%Y %H:%M") if sale.date else "Fecha no disponible"
+            
+            # Determinar cliente
+            customer_name = sale.customer.name if sale.customer else "Cliente no registrado"
+            
+            # Crear tabla de productos
+            products_table = ft.DataTable(
+                columns=[
+                    ft.DataColumn(ft.Text("Producto")),
+                    ft.DataColumn(ft.Text("Cantidad")),
+                    ft.DataColumn(ft.Text("Precio")),
+                    ft.DataColumn(ft.Text("Subtotal"))
+                ],
+                rows=[]
+            )
+            
+            # Para cada item de la venta, añadir una fila a la tabla
+            for item in sale.items:
+                products_table.rows.append(
+                    ft.DataRow(
+                        cells=[
+                            ft.DataCell(
+                                ft.Text(item.product.name if item.product else "Producto eliminado")
+                            ),
+                            ft.DataCell(
+                                ft.Text(str(item.quantity))
+                            ),
+                            ft.DataCell(
+                                ft.Text(f"${item.unit_price:.2f}")
+                            ),
+                            ft.DataCell(
+                                ft.Text(f"${item.subtotal:.2f}")
+                            )
+                        ]
+                    )
+                )
+            
+            # Crear contenido de la ventana modal
+            modal_content = ft.Column([
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.icons.SHOPPING_CART, color=ft.colors.PRIMARY, size=30),
+                        ft.Text(f"Detalles de Venta #{sale.id}", size=20, weight=ft.FontWeight.BOLD)
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    margin=ft.margin.only(bottom=10)
+                ),
+                
+                ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("Cliente:", weight=ft.FontWeight.BOLD),
+                            ft.Text(customer_name)
+                        ]),
+                        ft.Row([
+                            ft.Text("Fecha:", weight=ft.FontWeight.BOLD),
+                            ft.Text(date_str)
+                        ]),
+                        ft.Row([
+                            ft.Text("Total:", weight=ft.FontWeight.BOLD),
+                            ft.Text(f"${sale.total_amount:.2f}")
+                        ]),
+                        ft.Row([
+                            ft.Text("Método de pago:", weight=ft.FontWeight.BOLD),
+                            ft.Text(sale.payment_method.capitalize() if sale.payment_method else "No especificado")
+                        ]),
+                        ft.Row([
+                            ft.Text("Estado:", weight=ft.FontWeight.BOLD),
+                            ft.Text(sale.status.capitalize() if sale.status else "No especificado")
+                        ]),
+                    ]),
+                    padding=10,
+                    border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+                    border_radius=5,
+                    margin=ft.margin.only(bottom=15)
+                ),
+                
+                ft.Text("Productos:", weight=ft.FontWeight.BOLD),
+                products_table,
+                
+                ft.Container(
+                    content=ft.Row([
+                        ft.FilledButton(
+                            "Ver detalles completos",
+                            icon=ft.icons.VISIBILITY,
+                            on_click=lambda _, s=sale.id: self.page.go(f"/ver_reportes/ventas?id={s}")
+                        ),
+                        ft.OutlinedButton(
+                            "Cerrar",
+                            icon=ft.icons.CLOSE,
+                            on_click=lambda _: self.close_sale_popup()
+                        )
+                    ], alignment=ft.MainAxisAlignment.END, spacing=10),
+                    margin=ft.margin.only(top=15)
+                )
+            ], scroll=ft.ScrollMode.AUTO)
+            
+            # Definir el tamaño de la ventana modal según el dispositivo
+            if self.is_mobile:
+                modal_width = min(self.page.width * 0.9, 350)
+                modal_height = min(self.page.height * 0.8, 550)
+            else:
+                modal_width = min(self.page.width * 0.6, 700)
+                modal_height = min(self.page.height * 0.7, 650)
+            
+            # Crear y mostrar el diálogo
+            self.sale_popup = ft.AlertDialog(
+                title=ft.Text(f"Venta #{sale.id}"),
+                content=ft.Container(
+                    content=modal_content,
+                    width=modal_width,
+                    height=modal_height,
+                    padding=15
+                ),
+                actions_alignment=ft.MainAxisAlignment.END,
+                on_dismiss=lambda _: self.close_sale_popup()
+            )
+            
+            # Mostrar la ventana modal
+            self.page.dialog = self.sale_popup
+            self.sale_popup.open = True
+            self.page.update()
+            
+        except Exception as e:
+            logging.error(f"Error al mostrar detalles de venta: {str(e)}")
+            
+    def close_sale_popup(self):
+        """Cierra la ventana popup de detalles de venta"""
+        if hasattr(self, 'sale_popup'):
+            self.sale_popup.open = False
+            self.page.update()
+
+    def handle_logout(self, e):
+        try:
+            self.page.client_storage.remove("token")
+            self.page.client_storage.remove("user_role")
+            self.page.go("/login")
+        except Exception as e:
+            show_error_message(self.page, f"Error al cerrar sesión: {str(e)}")

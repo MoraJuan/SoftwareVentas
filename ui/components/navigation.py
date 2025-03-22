@@ -14,7 +14,6 @@ class NavigationRail(ft.UserControl):
             (ft.icons.SHOPPING_CART_OUTLINED, ft.icons.SHOPPING_CART_ROUNDED, "Ventas"),
             (ft.icons.INVENTORY_2_OUTLINED, ft.icons.INVENTORY_2_ROUNDED, "Inventario"),
             (ft.icons.ASSESSMENT_OUTLINED, ft.icons.ASSESSMENT_ROUNDED, "Reportes"),
-            (ft.icons.PEOPLE_OUTLINED, ft.icons.PEOPLE_ROUNDED, "Proveedores"),
         ]
         self.is_mobile = self.page.width < 600
         self.nav_control = None

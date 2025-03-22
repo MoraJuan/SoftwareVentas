@@ -152,10 +152,22 @@ class PageCustomer(ft.UserControl):
             } for c in self.all_customers
         ]
 
+    # def edit_customer(self, row_data):
+    #     customer = row_data["customer"]
+    #     self.page.client_storage.set("edit_customer_id", customer.id)
+    #     self.page.go("/editar_cliente")
+    
     def edit_customer(self, row_data):
         customer = row_data["customer"]
         self.page.client_storage.set("edit_customer_id", customer.id)
-        self.page.go("/editar_cliente")
+        
+        # Usar la factory para crear el formulario
+        from pages.customer.page_factory import CustomerPageFactory
+        customer_form = CustomerPageFactory.create_customer_form(self.page, self.session, edit_mode=True)
+        
+        self.controls.clear()
+        self.controls.append(customer_form)
+        self.update()
 
     def delete_customer(self, row_data):
         customer = row_data["customer"]
