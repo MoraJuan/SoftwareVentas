@@ -4,6 +4,8 @@ from sqlalchemy.orm import sessionmaker
 import logging
 import json
 import os
+import platform
+import sys
 
 from pages.auth.login import LoginView
 from pages.auth.register import RegisterView
@@ -13,26 +15,61 @@ from pages import HomeView
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+#* Determinar el sistema operativo
+IS_WINDOWS = platform.system() == "Windows"
+logger.info(f"Sistema operativo detectado: {platform.system()}")
+
 #* Rutas públicas que no requieren autenticación
 PUBLIC_ROUTES = ["/login", "/register"]
 
 #* Constantes para el tamaño de la aplicación
-MIN_WINDOW_WIDTH = 600  # Ancho mínimo para la aplicación (en pixeles)
-MIN_WINDOW_HEIGHT = 800  # Alto mínimo para la aplicación (en pixeles)
-# No es necesario definir tamaños por defecto si usaremos pantalla completa
+MIN_WINDOW_WIDTH = 800  # Ancho mínimo para la aplicación (en pixeles)
+MIN_WINDOW_HEIGHT = 600  # Alto mínimo para la aplicación (en pixeles)
+DEFAULT_WINDOW_WIDTH = 1024  # Ancho por defecto para escritorio
+DEFAULT_WINDOW_HEIGHT = 768  # Alto por defecto para escritorio
 
 def main(page: ft.Page):
     try:
         #* Configurar la página
-        page.window.icon = "icon.png"  # Ruta relativa al assets_dir
+        if IS_WINDOWS:
+            # En Windows, usar el archivo .ico que es mejor soportado
+            page.window.icon = "icon_windows.ico"
+            logger.info("Usando icono específico para Windows")
+            
+            # Configuraciones específicas para Windows
+            page.window.bgcolor = "#FFFFFF"
+            page.window.title_bar_bgcolor = "#2196F3"
+            page.window.title_bar_buttons_bgcolor = "#64B5F6"
+            page.window.title_bar_icon_color = "#FFFFFF"
+            page.window.frameless = False  # Usar marco de ventana estándar
+            page.window.focused_border_color = "#2196F3"  # Color de borde con foco
+            page.window.opacity = 1.0  # Opacidad completa para mejor legibilidad
+            page.window.title_bar_hidden = False  # Mostrar barra de título
+        else:
+            # En otros sistemas, usar el PNG
+            page.window.icon = "icon.png"
+        
         page.title = "Sistema de Ventas"
         
-        # Establecer pantalla completa al iniciar
+        # Iniciar en pantalla completa siempre, independientemente del SO
         page.window.maximized = True
+        page.window.fullscreen = True  # Forzar el modo pantalla completa
         
-        # Mantener tamaños mínimos para cuando el usuario salga del modo pantalla completa
+        # Guardar las dimensiones para cuando el usuario salga del modo pantalla completa
+        page.window.width = DEFAULT_WINDOW_WIDTH
+        page.window.height = DEFAULT_WINDOW_HEIGHT
+        
+        # Centrar la ventana - no podemos usar screen_height directamente en Flet
+        # En su lugar, usamos un enfoque más simple (la ventana se posicionará automáticamente)
+        page.window.top = None  # Permitir que el sistema operativo posicione la ventana
+        page.window.left = None # Permitir que el sistema operativo posicione la ventana
+        
+        # Definir tamaños mínimos
         page.window.min_width = MIN_WINDOW_WIDTH
         page.window.min_height = MIN_WINDOW_HEIGHT
+        
+        # Proveer un botón para maximizar si el usuario lo desea
+        page.window.maximizable = True
         
         # Evento para manejar cuando la aplicación cambie de tamaño
         def window_event_handler(e):
@@ -40,11 +77,36 @@ def main(page: ft.Page):
             # Cuando la ventana cambia de tamaño, forzar un evento de resize para actualizar la UI
             if e.data == "resize":
                 logger.info(f"Ventana redimensionada a: {page.window.width}x{page.window.height}")
+                # Actualizar variables is_mobile e is_tablet en componentes activos
+                _update_responsive_state(page)
                 # Forzar actualización de componentes
                 if hasattr(page, "on_resize") and page.on_resize is not None:
                     page.on_resize(e)
                 page.update()
-                
+        
+        # Función para actualizar estado responsive en componentes activos
+        def _update_responsive_state(page):
+            try:
+                # Actualizar la propiedad is_mobile en la vista actual y sus controles
+                for view in page.views:
+                    if hasattr(view, "is_mobile"):
+                        view.is_mobile = page.width < 600
+                    if hasattr(view, "is_tablet"):
+                        view.is_tablet = 600 <= page.width < 1024
+                    
+                    # Propagar a los controles que tengan estas propiedades
+                    for control in view.controls:
+                        if hasattr(control, "is_mobile"):
+                            control.is_mobile = page.width < 600
+                        if hasattr(control, "is_tablet"):
+                            control.is_tablet = 600 <= page.width < 1024
+                        
+                        # Si el control tiene un método handle_resize, llamarlo
+                        if hasattr(control, "handle_resize"):
+                            control.handle_resize(None)
+            except Exception as e:
+                logger.error(f"Error al actualizar estado responsive: {str(e)}")
+        
         # Registrar el manejador de eventos de ventana
         page.window.on_event = window_event_handler
         
@@ -99,33 +161,55 @@ def main(page: ft.Page):
         def route_change(route):
             try:
                 page.views.clear()
+                
+                view = None
                 if page.route == "/login":
                     logger.info("Cargando vista de login")
-                    page.views.append(LoginView(page, session))
+                    view = LoginView(page, session)
                 elif page.route == "/register":
                     logger.info("Cargando vista de registro")
-                    page.views.append(RegisterView(page, session))
+                    view = RegisterView(page, session)
                 elif page.route == "/":
                     logger.info("Cargando vista de dashboard")
-                    home_view = HomeView(page, session)
-                    page.views.append(home_view)
+                    view = HomeView(page, session)
                 else:
                     logger.info(f"Ruta no encontrada: {page.route}")
                     if is_authenticated():
-                        home_view = HomeView(page, session)
-                        page.views.append(home_view)
+                        view = HomeView(page, session)
                     else:
-                        page.views.append(LoginView(page, session))
+                        view = LoginView(page, session)
+                
+                # Actualizar propiedades responsive de la vista
+                if hasattr(view, "is_mobile"):
+                    view.is_mobile = page.width < 600
+                if hasattr(view, "is_tablet"):
+                    view.is_tablet = 600 <= page.width < 1024
+                
+                page.views.append(view)
                 page.update()
+                
+                # Asegurar que los controles se actualicen después de cargar
+                if hasattr(view, "handle_resize"):
+                    view.handle_resize(None)
+                
             except Exception as e:
                 logger.error(f"Error en cambio de ruta: {str(e)}")
                 page.views.clear()
                 if is_authenticated():
-                    home_view = HomeView(page, session)
-                    page.views.append(home_view)
+                    view = HomeView(page, session)
+                    if hasattr(view, "is_mobile"):
+                        view.is_mobile = page.width < 600
+                    if hasattr(view, "is_tablet"):
+                        view.is_tablet = 600 <= page.width < 1024
+                    page.views.append(view)
                 else:
-                    page.views.append(LoginView(page, session))
-        page.update()
+                    view = LoginView(page, session)
+                    if hasattr(view, "is_mobile"):
+                        view.is_mobile = page.width < 600
+                    if hasattr(view, "is_tablet"):
+                        view.is_tablet = 600 <= page.width < 1024
+                    page.views.append(view)
+                page.update()
 
         def view_pop(view):
             page.views.pop()
@@ -165,4 +249,6 @@ def main(page: ft.Page):
         page.update()
 
 if __name__ == '__main__':
-    ft.app(target=main, assets_dir="assets")  # Agregar assets_dir para la correcta carga de recursos
+    # Flet solo acepta assets_dir como parámetro directo, el resto de configuraciones
+    # de ventana deben hacerse dentro de la función main
+    ft.app(target=main, assets_dir="assets")

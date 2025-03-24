@@ -37,6 +37,10 @@ class HomeView(ft.UserControl):
         else:
             # Si no hay manejador previo, asignar el nuestro
             self.page.on_resize = self.handle_resize
+            
+        # Manejar cambios de ruta
+        original_on_route_change = self.page.on_route_change
+        self.page.on_route_change = self.route_change
 
     def build_ui(self):
         # Calcular dimensiones disponibles (usar window.width si está disponible)
@@ -273,6 +277,49 @@ class HomeView(ft.UserControl):
             self.content_container.content = ft.Column(
                 controls=[
                     ft.Text("Error al cambiar de vista", size=24,
+                            weight=ft.FontWeight.BOLD, color=ft.colors.ERROR),
+                    ft.Text(f"{str(e)}", size=16, color=ft.colors.ERROR),
+                ],
+                spacing=20
+            )
+            self.update()
+
+    def route_change(self, route):
+        try:
+            route_value = route.route
+
+            logging.info(f"HomeView: Cambio de ruta a {route_value}")
+            
+            # Rutas específicas
+            if route_value == "/reports":
+                self.content_container.content = self.get_reports_view()
+                self.update()
+            elif route_value == "/ver_inventario":
+                self.content_container.content = self.get_inventory_view()
+                self.update()
+            elif route_value == "/agregar_gasto":
+                from pages.expences.PageExpenseForm import PageExpenseForm
+                self.content_container.content = PageExpenseForm(self.page, self.session)
+                self.update()
+            elif route_value == "/editar_gasto":
+                from pages.expences.PageExpenseForm import PageExpenseForm
+                expense_id = self.page.client_storage.get("edit_expense_id")
+                if expense_id:
+                    self.content_container.content = PageExpenseForm(self.page, self.session, edit_mode=True, expense_id=expense_id)
+                else:
+                    self.content_container.content = PageExpenseForm(self.page, self.session)  # Si no hay ID, usamos modo de agregar
+                self.update()
+            # Resto de las rutas existentes...
+        except Exception as e:
+            logging.error(f"Error al manejar la ruta: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            show_error_message(
+                self.page, f"Error al manejar la ruta: {str(e)}")
+            # Mantener la vista actual o mostrar un error
+            self.content_container.content = ft.Column(
+                controls=[
+                    ft.Text("Error al manejar la ruta", size=24,
                             weight=ft.FontWeight.BOLD, color=ft.colors.ERROR),
                     ft.Text(f"{str(e)}", size=16, color=ft.colors.ERROR),
                 ],

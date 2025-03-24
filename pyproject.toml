@@ -1,0 +1,79 @@
+[project]
+name = "software-ventas"
+version = "0.1.0"
+description = "Sistema de gestión de inventario y ventas"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Juan Carlos", email = "ejemplo@dominio.com" }
+]
+dependencies = [
+  "flet==0.25.2",
+  "sqlalchemy>=2.0.0",
+  "python-jose[cryptography]>=3.3.0",
+  "passlib>=1.7.4",
+  "python-multipart>=0.0.5",
+  "python-dateutil>=2.8.2",
+  "reportlab>=4.0.4",
+  "matplotlib>=3.7.1",
+  "bcrypt>=4.0.1",
+  "pillow>=10.0.0",
+  "pydantic>=2.0.0",
+  "python-dotenv>=1.0.0",
+  "werkzeug>=2.0.0",
+  "pandas>=2.0.0",
+  "openpyxl>=3.1.0",
+  "numpy>=1.24.0",
+  "xlsxwriter>=3.0.0",
+  "SQLAlchemy-Utils>=0.40.0",
+  "alembic>=1.11.0",
+  "colorama>=0.4.6",
+  "Jinja2>=3.1.2",
+  "typing-extensions>=4.5.0",
+  "qrcode>=7.4.0",
+  "pywin32>=300;platform_system=='Windows'",
+  "pyinstaller>=5.9.0",
+  "tqdm>=4.65.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.flet]
+org = "com.sistemaventas"
+product = "SistemaVentas"
+company = "Sistema de Ventas"
+copyright = "Copyright (C) 2024"
+executable_name = "SistemaVentas"
+icon = "assets/icon.png"
+icon_windows = "assets/icon_windows.ico"
+description = "Sistema de gestión de inventario y ventas para escritorio"
+windows_startup_delay = 1000  # Milisegundos
+clean_window_installation = false  # Para preservar los datos entre instalaciones
+
+[tool.flet.app]
+path = "main.py"
+assets_dir = "assets"
+bundle_id = "com.sistemaventas.app"
+
+[tool.flet.app.boot_screen]
+show = true
+message = "Preparando la aplicación para su inicio..."
+icon = "assets/icon.png"
+composition_color = "#2196F3"
+progress_composition_color = "#64B5F6"
+backdrop_blur = 5  # Blur de fondo en píxeles
+
+[tool.flet.app.windows]
+use_existing_install = true  # Usar instalación existente si está disponible
+msix = false  # No empaquetar como MSIX para mejor compatibilidad
+clean_install = false  # No limpiar al actualizar
+file_associations = [
+    { ext = ".ventas", name = "Sistema de Ventas", description = "Archivos del Sistema de Ventas" }
+]
+shortcut_name = "Sistema de Ventas"
+security_title = "Sistema de Ventas de Confianza"
+
+[tool.setuptools]
+packages = ["pages", "models", "services", "ui", "utils", "config", "database", "scripts"] 

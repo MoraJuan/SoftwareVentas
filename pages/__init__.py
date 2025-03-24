@@ -5,7 +5,8 @@ from pages.auth.login import LoginView
 from pages.auth.register import RegisterView    
 from pages.reports.PageReports import PageReports
 from pages.expences.PageExpences import PageExpense
+from pages.expences.PageExpenseForm import PageExpenseForm
 from pages.customer.PageCustomer import PageCustomer
 from pages.categories.PageCategory import PageCategory
 
-__all__ = ['SupplierPageFactory', 'PageInventory', 'HomeView', 'LoginView', 'RegisterView', 'PageReports', 'PageExpense', 'PageCustomer', 'PageCategory'] 
+__all__ = ['SupplierPageFactory', 'PageInventory', 'HomeView', 'LoginView', 'RegisterView', 'PageReports', 'PageExpense', 'PageExpenseForm', 'PageCustomer', 'PageCategory'] 
