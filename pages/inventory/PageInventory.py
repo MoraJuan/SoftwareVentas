@@ -51,7 +51,7 @@ class PageInventory(ft.UserControl):
                 ft.FilledTonalButton(
                     text="Historial",
                     icon=ft.icons.HISTORY,
-                    on_click=lambda _: self.page.go("/historial_inventario")
+                    on_click=lambda _: self.show_inventory_history()
                 )
             ], wrap=True, spacing=10)
 
@@ -183,9 +183,37 @@ class PageInventory(ft.UserControl):
         ]
 
     def edit_product(self, row_data):
-        product = row_data["product"]
-        self.page.client_storage.set("edit_product_id", product.id)
-        self.page.go("/editar_producto")
+        try:
+            logging.info(f"Iniciando edición de producto: {row_data}")
+            product = row_data["product"]
+            if product and hasattr(product, 'id'):
+                logging.info(f"Editando producto ID: {product.id}, Nombre: {product.name}")
+                
+                # Guardar ID en client_storage
+                self.page.client_storage.set("edit_product_id", product.id)
+                logging.info(f"Guardado ID de producto para edición: {product.id}")
+                
+                # Crear una instancia de PageProductForm con el producto a editar
+                product_form = PageProductForm(self.page, self.session, product_id=product.id)
+                
+                # Limpiar controles actuales
+                self.controls.clear()
+                
+                # Agregar el formulario de producto a los controles
+                self.controls.append(product_form)
+                
+                # Actualizar la UI
+                self.update()
+                
+                logging.info(f"Navegado a formulario de edición para producto ID: {product.id}")
+            else:
+                logging.error(f"Datos de producto inválidos para edición: {product}")
+                show_error_message(self.page, "No se pudo editar el producto. Datos inválidos.")
+        except Exception as e:
+            logging.error(f"Error al editar producto: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            show_error_message(self.page, f"Error al editar producto: {str(e)}")
 
     def delete_product(self, row_data):
         product = row_data["product"]
@@ -233,3 +261,22 @@ class PageInventory(ft.UserControl):
         self.controls.clear()
         self.controls.append(PageProductForm(self.page, self.session))
         self.update()
+
+    def show_inventory_history(self):
+        try:
+            from pages.inventory.PageInventoryHistory import PageInventoryHistory
+            logging.info("Cargando vista de historial de inventario")
+            # Crear una instancia de la página de historial
+            history_page = PageInventoryHistory(self.page, self.session)
+            # Limpiar controles actuales
+            self.controls.clear()
+            # Añadir la página de historial a los controles
+            self.controls.append(history_page)
+            # Actualizar la UI
+            self.update()
+            logging.info("Vista de historial cargada exitosamente")
+        except Exception as e:
+            logging.error(f"Error al cargar historial de inventario: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            show_error_message(self.page, f"Error al cargar historial: {str(e)}")

@@ -18,6 +18,15 @@ class ProductService:
         """Obtiene un producto por su ID"""
         return self.db.query(Product).filter(Product.id == product_id).first()
 
+    def product_exists(self, product_id: int) -> bool:
+        """Verifica si un producto existe basado en su ID"""
+        try:
+            result = self.db.query(Product.id).filter(Product.id == product_id).first()
+            return result is not None
+        except Exception as e:
+            logging.error(f"Error al verificar existencia del producto: {str(e)}")
+            return False
+
     def get_product_by_code(self, code: str) -> Optional[Product]:
         """Obtiene un producto por su código"""
         return self.db.query(Product).filter(Product.code == code).first()

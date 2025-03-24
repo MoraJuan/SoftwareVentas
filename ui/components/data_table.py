@@ -1,5 +1,6 @@
 import flet as ft
 from typing import List, Dict, Callable, Any
+import logging
 
 class DataTable(ft.UserControl):
     def __init__(
@@ -94,29 +95,99 @@ class DataTable(ft.UserControl):
 
     def build_rows(self, data: List[Dict]) -> List[ft.DataRow]:
         rows = []
-        for row in data:
-            cells = [
-                ft.DataCell(ft.Text(str(row.get(col, ""))))
-                for col in self.columns[:-1] if col != "Acciones"  # Excluir columna de acciones
-            ]
-            if self.on_select or self.on_delete:
-                action_cell = ft.DataCell(
-                    ft.Row([
-                        ft.IconButton(
-                            ft.icons.EDIT,
-                            on_click=lambda e, r=row: self.on_select(r) if self.on_select else None,
-                            icon_color=ft.colors.PRIMARY
-                        ) if self.on_select else None,
-                        ft.IconButton(
-                            ft.icons.DELETE,
-                            on_click=lambda e, r=row: self.on_delete(r) if self.on_delete else None,
-                            icon_color=ft.colors.ERROR
-                        ) if self.on_delete else None,
-                    ], spacing=5)
-                )
-                cells.append(action_cell)
-            rows.append(ft.DataRow(cells=cells))
+        for i, row in enumerate(data):
+            try:
+                # Crear una celda para cada columna
+                cells = []
+                for col in self.columns:
+                    if col == "Acciones":
+                        # Columna especial para acciones
+                        if self.on_select or self.on_delete:
+                            # Creamos los manejadores de eventos como funciones de clase
+                            action_buttons = []
+                            
+                            # Botón de editar
+                            if self.on_select:
+                                edit_btn = ft.IconButton(
+                                    ft.icons.EDIT,
+                                    tooltip="Editar",
+                                    icon_color=ft.colors.PRIMARY,
+                                    data=i,  # Guardamos el índice de la fila
+                                    on_click=lambda e: self._handle_edit_click(e)
+                                )
+                                action_buttons.append(edit_btn)
+                            
+                            # Botón de eliminar
+                            if self.on_delete:
+                                delete_btn = ft.IconButton(
+                                    ft.icons.DELETE,
+                                    tooltip="Eliminar",
+                                    icon_color=ft.colors.ERROR,
+                                    data=i,  # Guardamos el índice de la fila
+                                    on_click=lambda e: self._handle_delete_click(e)
+                                )
+                                action_buttons.append(delete_btn)
+                            
+                            action_cell = ft.DataCell(
+                                ft.Row(action_buttons, spacing=5)
+                            )
+                            cells.append(action_cell)
+                        else:
+                            # Si no hay acciones, aún necesitamos agregar una celda vacía
+                            cells.append(ft.DataCell(ft.Text("")))
+                    else:
+                        # Columna normal con datos
+                        cells.append(ft.DataCell(ft.Text(str(row.get(col, "")))))
+                
+                # Asegurarse de que el número de celdas sea igual al número de columnas
+                if len(cells) != len(self.columns):
+                    logging.warning(f"Número incorrecto de celdas ({len(cells)}) para las columnas ({len(self.columns)}). Ajustando...")
+                    # Rellenar con celdas vacías si faltan
+                    while len(cells) < len(self.columns):
+                        cells.append(ft.DataCell(ft.Text("")))
+                    # Truncar si hay demasiadas
+                    cells = cells[:len(self.columns)]
+                
+                # Crear la fila y guardar los datos originales de la fila como atributo
+                data_row = ft.DataRow(cells=cells)
+                data_row.data = row  # Guardamos los datos originales en la fila
+                rows.append(data_row)
+            except Exception as e:
+                logging.error(f"Error al construir fila de datos: {str(e)}")
+                # Continuar con la siguiente fila
+                continue
+                
         return rows
+    
+    def _handle_edit_click(self, e):
+        """Manejador para el botón de editar"""
+        try:
+            row_index = e.control.data  # Obtenemos el índice de la fila desde el botón
+            current_data = self.get_current_page_data()
+            if 0 <= row_index < len(current_data):
+                row_data = current_data[row_index]
+                if self.on_select:
+                    logging.info(f"Editando fila: {row_data}")
+                    self.on_select(row_data)
+        except Exception as e:
+            logging.error(f"Error al manejar clic de edición: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+    
+    def _handle_delete_click(self, e):
+        """Manejador para el botón de eliminar"""
+        try:
+            row_index = e.control.data  # Obtenemos el índice de la fila desde el botón
+            current_data = self.get_current_page_data()
+            if 0 <= row_index < len(current_data):
+                row_data = current_data[row_index]
+                if self.on_delete:
+                    logging.info(f"Eliminando fila: {row_data}")
+                    self.on_delete(row_data)
+        except Exception as e:
+            logging.error(f"Error al manejar clic de eliminación: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
 
     def sort_table(self, column_index: int):
         if self.sort_column_index == column_index:

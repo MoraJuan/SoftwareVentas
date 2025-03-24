@@ -39,9 +39,24 @@ class HomeView(ft.UserControl):
             self.page.on_resize = self.handle_resize
 
     def build_ui(self):
-        # Calcular dimensiones disponibles
-        available_width = self.page.width if hasattr(self.page, 'width') else 1200
-        available_height = self.page.height if hasattr(self.page, 'height') else 800
+        # Calcular dimensiones disponibles (usar window.width si está disponible)
+        available_width = self.page.window.width if hasattr(self.page, 'window') and hasattr(self.page.window, 'width') else self.page.width
+        available_height = self.page.window.height if hasattr(self.page, 'window') and hasattr(self.page.window, 'height') else self.page.height
+        
+        # Usar valores por defecto si no se pueden determinar
+        if not available_width or available_width <= 0:
+            available_width = 1200
+        if not available_height or available_height <= 0:
+            available_height = 800
+            
+        logging.info(f"HomeView build_ui: Dimensiones disponibles {available_width}x{available_height}px")
+        
+        # Determinar el tipo de dispositivo
+        self.is_mobile = available_width < 600
+        is_tablet = 600 <= available_width < 1024
+        is_desktop = available_width >= 1024
+
+        logging.info(f"HomeView build_ui: Tipo de dispositivo - mobile={self.is_mobile}, tablet={is_tablet}, desktop={is_desktop}")
         
         # Contenedor para el contenido principal
         self.content_container = ft.Container(
@@ -49,8 +64,8 @@ class HomeView(ft.UserControl):
             expand=True,
             # Agregar margen para evitar superposición
             margin=ft.margin.all(0),
-            # Ajustar el ancho para evitar conflicto con la barra de navegación
-            width=self.page.width - (200 if not self.is_mobile else 0),
+            # Ajustar el ancho adecuadamente según el tipo de dispositivo
+            width=available_width - (200 if not self.is_mobile and not is_tablet else 65 if is_tablet else 0),
         )
 
         # Diseño según el tamaño de pantalla
@@ -174,54 +189,58 @@ class HomeView(ft.UserControl):
             )
 
     def handle_resize(self, e):
-        # Guardar el estado actual
-        old_is_mobile = self.is_mobile
-        old_is_tablet = self.is_tablet
-        old_is_large_desktop = getattr(self, 'is_large_desktop', False)
-        
-        # Actualizar el tipo de dispositivo
-        self.determine_device_type()
-        
-        # Obtener dimensiones reales de la ventana
-        available_width = self.page.window.width if hasattr(self.page, 'window') and hasattr(self.page.window, 'width') else self.page.width
-        available_height = self.page.window.height if hasattr(self.page, 'window') and hasattr(self.page.window, 'height') else self.page.height
-        
-        # Usar valores por defecto si no se pueden determinar
-        if not available_width or available_width <= 0:
-            available_width = 1200
-        if not available_height or available_height <= 0:
-            available_height = 800
+        try:
+            # Obtener dimensiones reales de la ventana
+            available_width = self.page.window.width if hasattr(self.page, 'window') and hasattr(self.page.window, 'width') else self.page.width
+            available_height = self.page.window.height if hasattr(self.page, 'window') and hasattr(self.page.window, 'height') else self.page.height
             
-        logging.info(f"HomeView resize: Tamaño disponible: {available_width}x{available_height}px")
-        
-        # Actualizar el tamaño del contenedor de navegación en móvil si existe
-        if self.is_mobile and self.layout and isinstance(self.layout, ft.Column) and len(self.layout.controls) > 1:
-            nav_container = self.layout.controls[1]
-            if isinstance(nav_container, ft.Container):
-                nav_container.width = available_width
+            # Usar valores por defecto si no se pueden determinar
+            if not available_width or available_width <= 0:
+                available_width = 1200
+            if not available_height or available_height <= 0:
+                available_height = 800
                 
-        # Actualizar el tamaño del layout en todos los casos
-        if self.layout:
-            self.layout.width = available_width
-            self.layout.height = available_height
-        
-        # Reconstruir completamente si cambia el tipo de dispositivo
-        if (old_is_mobile != self.is_mobile or 
-            old_is_tablet != self.is_tablet):
-            logging.info(f"HomeView: Cambio de tipo de dispositivo - mobile={self.is_mobile}, tablet={self.is_tablet}")
-            self.build_ui()  # Reconstruir el diseño
-            self.update()
-            return
-        
-        # Ajustes finos sin reconstruir toda la UI
-        if hasattr(self, 'content_container') and self.content_container is not None:
-            # Ajustar padding según el tamaño
-            padding_value = 8 if self.is_mobile else 12 if self.is_tablet else 20
-            if self.content_container.padding != padding_value:
-                self.content_container.padding = padding_value
+            logging.info(f"HomeView resize: Dimensiones disponibles {available_width}x{available_height}px")
             
-            # Forzar actualización
+            # Guardar el estado actual
+            old_is_mobile = self.is_mobile
+            old_is_tablet = getattr(self, 'is_tablet', False)
+            old_is_large_desktop = getattr(self, 'is_large_desktop', False)
+            
+            # Actualizar el tipo de dispositivo
+            self.is_mobile = available_width < 600
+            self.is_tablet = 600 <= available_width < 1024
+            self.is_large_desktop = available_width >= 1200
+            
+            logging.info(f"HomeView resize: Tipo de dispositivo - mobile={self.is_mobile}, tablet={self.is_tablet}, large_desktop={self.is_large_desktop}")
+            
+            # Actualizar dimensiones del layout
+            if self.layout:
+                self.layout.width = available_width
+                self.layout.height = available_height
+            
+            # Actualizar ancho del contenedor de contenido
+            if self.content_container:
+                nav_width = 0
+                if not self.is_mobile:
+                    if self.is_tablet:
+                        nav_width = 65  # Ancho para tablets
+                    else:
+                        nav_width = 200 if self.is_large_desktop else 80  # Ancho para desktop
+                
+                self.content_container.width = available_width - nav_width
+                
+            # Reconstruir completamente si cambia el tipo de dispositivo
+            if old_is_mobile != self.is_mobile or old_is_tablet != self.is_tablet:
+                logging.info(f"HomeView: Cambio de tipo de dispositivo - reconstruyendo UI")
+                self.build_ui()  # Reconstruir el diseño
+                
             self.update()
+            
+        except Exception as e:
+            logging.error(f"Error en HomeView.handle_resize: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
 
     # Manejar el cambio de vista
     def handle_navigation_change(self, index):
@@ -260,32 +279,6 @@ class HomeView(ft.UserControl):
                 spacing=20
             )
             self.update()
-
-    def handle_resize(self, e):
-        try:
-            new_is_mobile = self.page.width < 600
-
-            if new_is_mobile != self.is_mobile:
-                self.is_mobile = new_is_mobile
-                self.build_ui()
-                self.update()
-            else:
-                if not self.is_mobile:
-                    nav_width = 200 if self.page.width > 1000 else 80
-                    content_width = self.page.width - nav_width - 1
-                    self.content_container.width = content_width
-                else:
-                    self.content_container.width = self.page.width
-            
-                # Asegurar que PageDashboard se actualice correctamente
-                if isinstance(self.content_container.content, PageDashboard):
-                    self.content_container.content.update()
-
-                self.update()
-
-        except Exception as e:
-            logging.error(f"Error en HomeView.handle_resize: {str(e)}")
-
 
     def build(self):
         return self.layout
