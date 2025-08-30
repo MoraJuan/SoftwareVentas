@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
+import sys
+import platform
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -8,9 +11,35 @@ load_dotenv()
 
 Base = declarative_base()
 
+# Resolver ruta de base de datos en un directorio de datos del usuario (persistente y con permisos)
+def _default_db_url() -> str:
+    # Permitir sobreescritura por variable de entorno
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        return env_url
+
+    system = platform.system()
+    if system == "Windows":
+        base = os.getenv("LOCALAPPDATA") or str(Path.home())
+        app_dir = Path(base) / "SistemaVentas"
+    else:
+        # Linux/Mac
+        app_dir = Path.home() / ".sistemaventas"
+
+    try:
+        app_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Fallback al directorio actual si no se puede crear
+        app_dir = Path.cwd()
+
+    db_path = app_dir / "ventas.db"
+    # Guardar para logging o inspección externa
+    globals()["DB_FILE_PATH"] = str(db_path)
+    return f"sqlite:///{db_path}"
+
 # Crear el motor de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ventas.db")
-engine = create_engine(DATABASE_URL, echo=True)
+DATABASE_URL = _default_db_url()
+engine = create_engine(DATABASE_URL, echo=False, future=True)
 
 # Configurar la sesión
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
